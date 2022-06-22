@@ -1,7 +1,5 @@
 #include <iostream>
 
-//#pragma comment(lib, "libs/libboost_filesystem")
-
 #include "core/packer.h"
 
 void print_usage();
@@ -9,6 +7,9 @@ void print_usage();
 using namespace std;
 
 int main(int argc, char* argv[]) {
+	evp::core::pack("d:/003 - Work/Talisman Development/001 - client/client", "d:/003 - Work/Talisman Development/002 - server/game_server");
+
+	return 1;
 
 	if(argc != 4) {
 		print_usage();

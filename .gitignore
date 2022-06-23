@@ -33,3 +33,5 @@
 
 .vs/
 out/
+
+CMakeSettings.json

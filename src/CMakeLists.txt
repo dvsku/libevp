@@ -5,12 +5,11 @@ PROJECT ("evp_exe" C CXX)
 IF (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	SET(CMAKE_CXX_FLAGS "-std=c++11 -m32 -ldl -lpthread -Wall -fpic -O2")
 ELSEIF (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	SET(CMAKE_CXX_FLAGS "/std:c++11 /D \"WIN32\" /O2 /Zi")
+	SET(CMAKE_CXX_FLAGS "/std:c++14 /D \"WIN32\" /O2 /Zi")
 ENDIF()
 
-ADD_EXECUTABLE ("evp" "evp.cpp" "libs/md5/md5.cpp" "core/fs.h")
+ADD_EXECUTABLE ("evp" "evp.cpp" "libs/md5/md5.cpp"  "core/progress.h")
 
-TARGET_INCLUDE_DIRECTORIES("evp" PRIVATE "libs/tinydir")
 TARGET_INCLUDE_DIRECTORIES("evp" PRIVATE "libs/md5")
 
 SET_TARGET_PROPERTIES("evp" PROPERTIES LINKER_LANGUAGE CXX)

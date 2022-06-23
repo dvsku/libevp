@@ -5,50 +5,38 @@
 
 #include <string>
 #include <vector>
-#include <iostream>
 #include <fstream>
-#include <algorithm>
-#include <iomanip>
 
-#include "fs.h"
 #include "consts.h"
 #include "md5.h"
+#include "progress.h"
 
 namespace evp {
 	namespace core {
 		static void file_desc_to_bytes(const file_desc& file_desc, std::vector<unsigned char>& buffer);
-		static void update_progress(bool force = false);
-
-		static float curr_prog = 0;
-		static int prev_prog = 0;
-
-		constexpr int PROGRESS_UPDATE_PERCENT = 2;
 		
-		static void pack(std::string input, std::string output) {
-			if(evp::fs::is_dir(input.c_str()) == FS_NOT_A_DIR)
-				return;
-
+		static void pack(filesys::path input, filesys::path output) {
 			std::vector<file_desc> input_files;
 			size_t curr_data_offset = DATA_START_OFFSET;
 			size_t footer_size = 0;
 
-			auto files = evp::fs::get_all_files(input.c_str());
+			auto files = get_all_files(input);
 
 			float prog_change_x = 85.0 / files.size();
 			float prog_change_y = 15.0 / files.size();
-			update_progress(true);
+			draw_progress_bar();
 
 			std::ofstream fout;
-			fout.open(output.c_str(), std::ios::binary);
+			fout.open(output, std::ios::binary);
 
 			fout.write(UNKNOWN_HEADER_BYTES, sizeof(UNKNOWN_HEADER_BYTES));
 			fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
-			for(std::string file : files) {
+			for(filesys::path file : files) {
 				file_desc input_file;
 
 				// save file path
-				input_file.m_path = file;
+				input_file.m_path = file.u8string();
 
 				// get file content
 				std::ifstream input_stream(file, std::ios::binary);
@@ -76,23 +64,19 @@ namespace evp {
 
 				curr_data_offset += input_file.m_data_size;
 
-				curr_prog += prog_change_x;
-				update_progress();
+				update_progress(prog_change_x);
 			}
 
 			fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
 			for(file_desc input_file : input_files) {
 				// get path relative to input path
-				int start_index = input_file.m_path.find(input.c_str());
-				input_file.m_path.erase(start_index, input.size());
+				int start_index = input_file.m_path.find(input.u8string());
+				input_file.m_path.erase(start_index, input.u8string().size());
 
 				// remove leading slash
-				if(input_file.m_path[0] == '/')
+				if(input_file.m_path[0] == '\\')
 					input_file.m_path.erase(0, 1);
-
-				// fix path slashes
-				std::replace(input_file.m_path.begin(), input_file.m_path.end(), '/', '\\');
 
 				// save path size
 				input_file.m_path_size = input_file.m_path.size();
@@ -105,8 +89,7 @@ namespace evp {
 
 				footer_size += file_desc_bytes.size();
 
-				curr_prog += prog_change_y;
-				update_progress();
+				update_progress(prog_change_y);
 			}
 
 			uint64_t num_files = input_files.size();
@@ -116,8 +99,7 @@ namespace evp {
 			fout.write((char*)&footer_size, sizeof(size_t));
 			fout.write((char*)&num_files, sizeof(uint64_t));
 
-			curr_prog = 100;
-			update_progress();
+			update_progress(100, false);
 
 			fout.close();
 		}
@@ -131,42 +113,6 @@ namespace evp {
 			buffer.insert(buffer.end(), 1, 1);
 			buffer.insert(buffer.end(), 11, 0);
 			buffer.insert(buffer.end(), file_desc.m_data_hash, file_desc.m_data_hash + sizeof(file_desc.m_data_hash));
-		}
-
-		static void update_progress(bool force) {
-			if(force) {
-				std::cout << "\r[";
-				for(int i = 1; i <= 100 / PROGRESS_UPDATE_PERCENT; i++) {
-					std::cout << " ";
-				}
-				std::cout << "] Packing    " << std::flush;
-				return;
-			}
-
-			int progress = curr_prog / PROGRESS_UPDATE_PERCENT;
-
-			if(progress > prev_prog) {
-				prev_prog = progress;
-
-				std::cout << "\r[";
-				for(int i = 1; i <= 100 / PROGRESS_UPDATE_PERCENT; i++) {
-					if(progress >= i)
-						std::cout << "X";
-					else
-						std::cout << " ";
-				}
-
-				if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 0)
-					std::cout << "] Packing    " << std::flush;
-				else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 1)
-					std::cout << "] Packing.   " << std::flush;
-				else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 2)
-					std::cout << "] Packing..  " << std::flush;
-				else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 3)
-					std::cout << "] Packing... " << std::flush;
-				else
-					std::cout << "] Done       " << std::flush;
-			}
 		}
 	}
 }

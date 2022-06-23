@@ -1,32 +1,72 @@
 #include <iostream>
 
 #include "core/packer.h"
+#include "core/unpacker.hpp"
 
 void print_usage();
 
 using namespace std;
 
 int main(int argc, char* argv[]) {
-	evp::core::pack("d:/003 - Work/Talisman Development/001 - client/client", "d:/003 - Work/Talisman Development/002 - server/game_server");
-
-	return 1;
-
 	if(argc != 4) {
 		print_usage();
 		return 1;
 	}
 
-	if(strcmp(argv[1], "pack") == 0) {
+	filesys::path input(argv[2]);
+	filesys::path output(argv[3]);
+
+	if (!input.is_absolute())
+		input = filesys::absolute(input);
+
+	if (!output.is_absolute())
+		output = filesys::absolute(output);
+
+	if(strcmp(argv[1], "pack") != 0) {
 		try {
-			evp::core::pack(string(argv[2]), string(argv[3]));
+			if(!filesys::exists(input))
+				throw runtime_error("Input directory doesn't exist");
+
+			if (!filesys::is_directory(input))
+				throw runtime_error("Input has to be a directory");
+
+			if (filesys::is_directory(output))
+				throw runtime_error("Output cannot be a directory");
+
+			if (!output.has_filename())
+				throw runtime_error("Output must be a file with .evp extension");
+
+			if (!output.has_extension() || output.extension() != ".evp")
+				throw runtime_error("Output extension must be .evp");
+
+			evp::core::pack(input, output);
 		}
 		catch(const exception& ex) {
-			cout << "Runtime error:" << endl;
-			cout << "\t" << ex.what() << endl;
+			cout << "Runtime error: " << ex.what() << endl;
 		}
 	}
 	else if(strcmp(argv[1], "unpack") == 0) {
-		
+		try {
+			if (!filesys::exists(output))
+				throw runtime_error("Output directory doesn't exist");
+
+			if (!filesys::is_directory(output))
+				throw runtime_error("Output has to be a directory");
+
+			if (filesys::is_directory(input))
+				throw runtime_error("Input cannot be a directory");
+
+			if (!input.has_filename())
+				throw runtime_error("Input must be a file with .evp extension");
+
+			if (!input.has_extension() || input.extension() != ".evp")
+				throw runtime_error("Input extension must be .evp");
+
+			evp::core::unpack(input, output);
+		}
+		catch (const exception& ex) {
+			cout << "Runtime error: " << ex.what() << endl;
+		}
 	}
 	else {
 		print_usage();

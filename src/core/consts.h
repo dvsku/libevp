@@ -35,8 +35,12 @@ static std::vector<filesys::path> get_all_files(filesys::path dir) {
 	return results;
 }
 
-static bool check_header(const char* header) {
-	// TODO
+static bool is_header_valid(const char* header) {
+	for (int i = 0; i < strlen(header); i++) {
+		if (UNKNOWN_HEADER_BYTES[i] != header[i])
+			return false;
+	}
+	return true;
 }
 
 #endif

@@ -17,6 +17,16 @@ namespace evp {
 
 			std::ifstream fin;
 			fin.open(input, std::ios::binary);
+
+			if(!fin.is_open())
+				throw std::runtime_error("Could not open input file");
+
+			char header_buffer[60];
+			fin.read(header_buffer, HEADER_END_OFFSET);
+
+			if(!is_header_valid(header_buffer))
+				throw std::runtime_error("Unsupported file type");
+
 			fin.seekg(HEADER_END_OFFSET, std::ios_base::beg);
 
 			fin.read((char*)&data_block_end, sizeof(size_t));

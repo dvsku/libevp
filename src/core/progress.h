@@ -30,13 +30,13 @@ namespace evp {
 			}
 
 			if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 0)
-				std::cout << "] Packing    " << std::flush;
+				std::cout << "] Working    " << std::flush;
 			else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 1)
-				std::cout << "] Packing.   " << std::flush;
+				std::cout << "] Working.   " << std::flush;
 			else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 2)
-				std::cout << "] Packing..  " << std::flush;
+				std::cout << "] Working..  " << std::flush;
 			else if(progress != 100 / PROGRESS_UPDATE_PERCENT && progress % 4 == 3)
-				std::cout << "] Packing... " << std::flush;
+				std::cout << "] Working... " << std::flush;
 			else
 				std::cout << "] Done       " << std::flush;
 		}
@@ -49,7 +49,7 @@ namespace evp {
 			for(int i = 1; i <= 100 / PROGRESS_UPDATE_PERCENT; i++) {
 				std::cout << " ";
 			}
-			std::cout << "] Packing    " << std::flush;
+			std::cout << "] Working    " << std::flush;
 		}
 	}
 }

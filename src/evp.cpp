@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 	if (!output.is_absolute())
 		output = filesys::absolute(output);
 
-	if(strcmp(argv[1], "pack") != 0) {
+	if(strcmp(argv[1], "pack") == 0) {
 		try {
 			if(!filesys::exists(input))
 				throw runtime_error("Input directory doesn't exist");

@@ -4,8 +4,9 @@
 #define LIBEVP_H
 
 #include <string>
+#include <functional>
 
-#include "definitions.h"
+#include "libevp_definitions.h"
 
 namespace dvsku {
 	class evp {
@@ -19,10 +20,17 @@ namespace dvsku {
 				size_t m_data_start_offset;
 			};
 
+		public:
 			enum file_filter : unsigned int {
 				none,
 				client_only,
 				server_only
+			};
+
+			enum evp_status : unsigned int {
+				ok,
+				error,
+				cancelled
 			};
 
 			struct evp_result {
@@ -34,42 +42,40 @@ namespace dvsku {
 				evp_result(evp_status code, const std::string& msg) : m_code(code), m_msg(msg) {}
 			};
 
-			typedef void (*notify_fn)(float);
-			typedef void (*error_fn)(evp_result);
+			typedef std::function<void()> notify_start;
+			typedef std::function<void(dvsku::evp::evp_status)> notify_finish;
+			typedef std::function<void(float)> notify_update;
+			typedef std::function<void(dvsku::evp::evp_result)> notify_error;
 
 		public:
 			static evp_result pack(const std::string& input, const std::string& output,
-				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr,
-				notify_fn finished = nullptr, error_fn error = nullptr);
+				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none);
 
 			static evp_result unpack(const std::string& input, const std::string& output,
-				bool decrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr,
-				notify_fn finished = nullptr, error_fn error = nullptr);
+				bool decrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none);
 
 			static void pack_async(const std::string& input, const std::string& output,
 				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr, notify_fn finished = nullptr,
-				error_fn error = nullptr);
+				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
+				notify_finish finished = nullptr, notify_error error = nullptr);
 
 			static void unpack_async(const std::string& input, const std::string& output,
 				bool decrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr, notify_fn finished = nullptr,
-				error_fn error = nullptr);
+				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
+				notify_finish finished = nullptr, notify_error error = nullptr);
 
 			static bool is_encrypted(const std::string& input);
 
 		protected:
 			static evp_result pack_impl(const filesys::path& input, const filesys::path& output,
 				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr, notify_fn finished = nullptr,
-				error_fn error = nullptr);
+				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
+				notify_finish finished = nullptr, notify_error error = nullptr);
 
 			static evp_result unpack_impl(const filesys::path& input, const filesys::path& output,
 				bool decrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
-				notify_fn started = nullptr, notify_fn progress_update = nullptr, notify_fn finished = nullptr,
-				error_fn error = nullptr);
+				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
+				notify_finish finished = nullptr, notify_error error = nullptr);
 
 			static void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 			

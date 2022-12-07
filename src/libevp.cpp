@@ -7,17 +7,13 @@
 #include "lib/md5/md5.h"
 
 dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+	const std::string& key, const file_filter& filter)
 {
 	evp_result result;
 	result = are_pack_paths_valid(input, output);
 
-	if (result.m_code != evp_status::ok) {
-		if (finished != nullptr) finished(0.0f);
-		if (error != nullptr) error(result);
+	if (result.m_code != evp_status::ok)
 		return result;
-	}
 
 	filesys::path input_path(input);
 	filesys::path output_path(output);
@@ -28,29 +24,22 @@ dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::str
 	if (!output_path.is_absolute())
 		output_path = filesys::absolute(output);
 
-	return pack_impl(input_path, output_path, encrypt, key, filter, started, progress_update, finished, error);
+	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
 dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+	const std::string& key, const file_filter& filter)
 {
 	evp_result result;
 	result = are_unpack_paths_valid(input, output);
 
-	if (result.m_code != evp_status::ok) {
-		if (finished != nullptr) finished(0.0f);
-		if (error != nullptr) error(result);
+	if (result.m_code != evp_status::ok) 
 		return result;
-	}
-
+	
 	result = is_evp_header_valid(input);
 
-	if (result.m_code != evp_status::ok) {
-		if (finished != nullptr) finished(0.0f);
-		if (error != nullptr) error(result);
+	if (result.m_code != evp_status::ok)
 		return result;
-	}
 
 	filesys::path input_path(input);
 	filesys::path output_path(output);
@@ -61,32 +50,73 @@ dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::s
 	if (!output_path.is_absolute())
 		output_path = filesys::absolute(output);
 
-	return unpack_impl(input_path, output_path, encrypt, key, filter, started, progress_update, finished, error);
+	return unpack_impl(input_path, output_path, encrypt, key, filter);
 }
 
 void dvsku::evp::pack_async(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	notify_finish finished, notify_error error)
 {
-	std::thread t([&] {
-		pack(input, output, encrypt, key, filter, started, progress_update, finished, error);
+	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
+		evp_result result;
+		result = are_pack_paths_valid(input, output);
+
+		if (result.m_code != evp_status::ok) {
+			if (error) error(result);
+			return;
+		}
+
+		filesys::path input_path(input);
+		filesys::path output_path(output);
+
+		if (!input_path.is_absolute())
+			input_path = filesys::absolute(input);
+
+		if (!output_path.is_absolute())
+			output_path = filesys::absolute(output);
+
+		pack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
 void dvsku::evp::unpack_async(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	notify_finish finished, notify_error error)
 {
-	std::thread t([&] {
-		unpack(input, output, encrypt, key, filter, started, progress_update, finished, error);
+	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
+		evp_result result;
+		result = are_unpack_paths_valid(input, output);
+
+		if (result.m_code != evp_status::ok) {
+			if (error) error(result);
+			return;
+		}
+
+		result = is_evp_header_valid(input);
+
+		if (result.m_code != evp_status::ok) {
+			if (error) error(result);
+			return;
+		}
+
+		filesys::path input_path(input);
+		filesys::path output_path(output);
+
+		if (!input_path.is_absolute())
+			input_path = filesys::absolute(input);
+
+		if (!output_path.is_absolute())
+			output_path = filesys::absolute(output);
+
+		unpack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const filesys::path& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const filesys::path& output, bool encrypt, 
+	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	notify_finish finished, notify_error error)
 {
 	std::vector<file_desc> input_files;
 	size_t curr_data_offset = DATA_START_OFFSET;
@@ -97,8 +127,8 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	float prog_change_x = 85.0 / files.size();
 	float prog_change_y = 15.0 / files.size();
 	
-	if (started != nullptr)
-		started(0.0f);
+	if (started)
+		started();
 
 	std::ofstream fout;
 	fout.open(output, std::ios::binary);
@@ -107,6 +137,15 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
 	for (filesys::path file : files) {
+		if (cancel != nullptr) {
+			if (*cancel) {
+				if (finished)
+					finished(dvsku::evp::evp_status::cancelled);
+
+				return evp_result();
+			}
+		}
+
 		file_desc input_file;
 
 		// save file path
@@ -138,13 +177,22 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 
 		curr_data_offset += input_file.m_data_size;
 
-		if (progress_update != nullptr)
-			progress_update(prog_change_x);
+		if (update)
+			update(prog_change_x);
 	}
 
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
 	for (file_desc input_file : input_files) {
+		if (cancel != nullptr) {
+			if (*cancel) {
+				if (finished)
+					finished(dvsku::evp::evp_status::cancelled);
+
+				return evp_result();
+			}
+		}
+
 		// get path relative to input path
 		int start_index = input_file.m_path.find(input.u8string());
 		input_file.m_path.erase(start_index, input.u8string().size());
@@ -164,8 +212,8 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 
 		footer_size += file_desc_bytes.size();
 
-		if (progress_update != nullptr)
-			progress_update(prog_change_y);
+		if (update)
+			update(prog_change_y);
 	}
 
 	uint64_t num_files = input_files.size();
@@ -175,17 +223,17 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	fout.write((char*)&footer_size, sizeof(size_t));
 	fout.write((char*)&num_files, sizeof(uint64_t));
 
-	if (finished != nullptr)
-		finished(100.0f);
+	if (finished)
+		finished(dvsku::evp::evp_status::ok);
 
 	fout.close();
 
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool encrypt,
-	const std::string& key, const file_filter& filter, notify_fn started,
-	notify_fn progress_update, notify_fn finished, error_fn error)
+dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool encrypt, 
+	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	notify_finish finished, notify_error error)
 {
 	size_t data_block_end = 0;
 	size_t names_block_size = 0;
@@ -196,7 +244,6 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 
 	if (!fin.is_open()) {
 		evp_result result(evp_status::error, "Could not open input file");
-		if (finished != nullptr) finished(0.0f);
 		if (error) error(result);
 		return result;
 	}
@@ -212,10 +259,19 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 	size_t curr_name_block_offset = data_block_end + 16;
 	size_t curr_data_block_offset = DATA_START_OFFSET;
 
-	if (started != nullptr)
-		started(0.0f);
+	if (started)
+		started();
 
 	for (int i = 0; i < file_count; i++) {
+		if (cancel != nullptr) {
+			if (*cancel) {
+				if (finished)
+					finished(dvsku::evp::evp_status::cancelled);
+
+				return evp_result();
+			}
+		}
+
 		file_desc output_file;
 
 		// go to curr name block pos
@@ -270,12 +326,12 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 		fout.write((char*)output_file.m_data.data(), output_file.m_data_size);
 		fout.close();
 
-		if (progress_update != nullptr)
-			progress_update(prog_change);
+		if (update)
+			update(prog_change);
 	}
 
-	if (finished != nullptr)
-		progress_update(100.0f);
+	if (finished)
+		finished(dvsku::evp::evp_status::ok);
 	
 	return evp_result();
 }

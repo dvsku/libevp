@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef DEFINITIONS_H
-#define DEFINITIONS_H
+#ifndef LIBEVP_DEFINITIONS_H
+#define LIBEVP_DEFINITIONS_H
 
 #include <vector>
 
@@ -22,10 +22,5 @@ constexpr uint32_t HEADER_END_OFFSET = 60;
 constexpr uint32_t OFFSET_BETWEEN_NAMES = 36;
 
 #define BUF8 std::vector<uint8_t>
-
-enum evp_status : unsigned int {
-	ok,
-	error,
-};
 
 #endif

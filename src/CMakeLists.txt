@@ -8,7 +8,7 @@ ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	SET(CMAKE_CXX_FLAGS "/std:c++17 /D \"WIN32\" /O2 /Zi /EHsc")
 ENDIF()
 
-ADD_LIBRARY(${PROJECT_NAME} STATIC  "libevp.h" "libevp.cpp" "lib/md5/md5.cpp" "libevp_definitions.h")
+ADD_LIBRARY(${PROJECT_NAME} STATIC  "libevp.h" "libevp.cpp" "lib/md5/md5.cpp" )
 
 TARGET_INCLUDE_DIRECTORIES(${PROJECT_NAME} PRIVATE "lib/md5")
 

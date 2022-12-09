@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "lib/md5/md5.h"
+#include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
 dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::string& output, bool encrypt,
 	const std::string& key, const file_filter& filter)
@@ -27,7 +28,7 @@ dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::str
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::string& output, bool encrypt,
+dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::string& output, bool decrypt,
 	const std::string& key, const file_filter& filter)
 {
 	evp_result result;
@@ -50,7 +51,7 @@ dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::s
 	if (!output_path.is_absolute())
 		output_path = filesys::absolute(output);
 
-	return unpack_impl(input_path, output_path, encrypt, key, filter);
+	return unpack_impl(input_path, output_path, decrypt, key, filter);
 }
 
 void dvsku::evp::pack_async(const std::string& input, const std::string& output, bool encrypt,
@@ -80,11 +81,11 @@ void dvsku::evp::pack_async(const std::string& input, const std::string& output,
 	t.detach();
 }
 
-void dvsku::evp::unpack_async(const std::string& input, const std::string& output, bool encrypt,
+void dvsku::evp::unpack_async(const std::string& input, const std::string& output, bool decrypt,
 	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
-	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
+	std::thread t([input, output, cancel, decrypt, key, filter, started, update, finished, error] {
 		evp_result result;
 		result = are_unpack_paths_valid(input, output);
 
@@ -109,7 +110,7 @@ void dvsku::evp::unpack_async(const std::string& input, const std::string& outpu
 		if (!output_path.is_absolute())
 			output_path = filesys::absolute(output);
 
-		unpack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
+		unpack_impl(input_path, output_path, decrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
@@ -121,6 +122,8 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	std::vector<file_desc> input_files;
 	size_t curr_data_offset = DATA_START_OFFSET;
 	size_t footer_size = 0;
+
+	dvsku::crypt::libdvsku_crypt crypt(key.c_str());
 
 	auto files = get_files(input);
 
@@ -155,6 +158,9 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 		std::ifstream input_stream(file, std::ios::binary);
 		input_file.m_data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
 		input_stream.close();
+
+		if (encrypt)
+			crypt.encrypt_buffer(input_file.m_data);
 
 		// save content size
 		input_file.m_data_size = (unsigned int)input_file.m_data.size();
@@ -231,13 +237,15 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool encrypt, 
+dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool decrypt,
 	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
 	size_t data_block_end = 0;
 	size_t names_block_size = 0;
 	uint64_t file_count = 0;
+
+	dvsku::crypt::libdvsku_crypt crypt(key.c_str());
 
 	std::ifstream fin;
 	fin.open(input, std::ios::binary);
@@ -299,6 +307,9 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 		fin.seekg(curr_data_block_offset, std::ios_base::beg);
 		fin.read((char*)output_file.m_data.data(), output_file.m_data_size);
 
+		if (decrypt)
+			crypt.decrypt_and_decompress_buffer(output_file.m_data);
+
 		curr_name_block_offset += OFFSET_BETWEEN_NAMES;
 		curr_data_block_offset += output_file.m_data_size;
 
@@ -323,7 +334,7 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 			return result;
 		}
 
-		fout.write((char*)output_file.m_data.data(), output_file.m_data_size);
+		fout.write((char*)output_file.m_data.data(), output_file.m_data.size());
 		fout.close();
 
 		if (update)

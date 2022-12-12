@@ -29,7 +29,7 @@ dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::str
 }
 
 dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::string& output, bool decrypt,
-	const std::string& key, const file_filter& filter)
+	const std::string& key)
 {
 	evp_result result;
 	result = are_unpack_paths_valid(input, output);
@@ -51,7 +51,7 @@ dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::s
 	if (!output_path.is_absolute())
 		output_path = filesys::absolute(output);
 
-	return unpack_impl(input_path, output_path, decrypt, key, filter);
+	return unpack_impl(input_path, output_path, decrypt, key);
 }
 
 void dvsku::evp::pack_async(const std::string& input, const std::string& output, bool encrypt,
@@ -82,10 +82,10 @@ void dvsku::evp::pack_async(const std::string& input, const std::string& output,
 }
 
 void dvsku::evp::unpack_async(const std::string& input, const std::string& output, bool decrypt,
-	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
-	std::thread t([input, output, cancel, decrypt, key, filter, started, update, finished, error] {
+	std::thread t([input, output, cancel, decrypt, key, started, update, finished, error] {
 		evp_result result;
 		result = are_unpack_paths_valid(input, output);
 
@@ -110,7 +110,7 @@ void dvsku::evp::unpack_async(const std::string& input, const std::string& outpu
 		if (!output_path.is_absolute())
 			output_path = filesys::absolute(output);
 
-		unpack_impl(input_path, output_path, decrypt, key, filter, cancel, started, update, finished, error);
+		unpack_impl(input_path, output_path, decrypt, key, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
@@ -136,7 +136,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	std::ofstream fout;
 	fout.open(output, std::ios::binary);
 
-	fout.write(UNKNOWN_HEADER_BYTES, sizeof(UNKNOWN_HEADER_BYTES));
+	fout.write(EVP_V1_HEADER, sizeof(EVP_V1_HEADER));
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
 	for (filesys::path file : files) {
@@ -238,7 +238,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 }
 
 dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool decrypt,
-	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
 	size_t data_block_end = 0;
@@ -310,7 +310,7 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 		if (decrypt)
 			crypt.decrypt_and_decompress_buffer(output_file.m_data);
 
-		curr_name_block_offset += OFFSET_BETWEEN_NAMES;
+		curr_name_block_offset += OFFSET_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;
 
 		filesys::path dir_path(output);
@@ -373,7 +373,7 @@ dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(const filesys::path& inpu
 	fin.close();
 
 	for (int i = 0; i < strlen(header_buffer); i++) {
-		if (UNKNOWN_HEADER_BYTES[i] != header_buffer[i])
+		if (EVP_V1_HEADER[i] != header_buffer[i])
 			return evp_result(evp_status::error, "Input not an .evp file or .evp version unsupported.");
 	}
 

@@ -7,10 +7,7 @@
 #include <string>
 #include <functional>
 
-#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
-#include <experimental/filesystem>
-
-namespace filesys = std::experimental::filesystem;
+#include "lib/libdvsku_crypt/utilities/utilities_filesys.h"
 
 // Bytes that describe v1 of an evp packer
 constexpr char EVP_V1_HEADER[60] {
@@ -43,12 +40,6 @@ namespace dvsku {
 			};
 
 		public:
-			enum file_filter : unsigned int {
-				none,			// include all files
-				client_only,	// include client only files
-				server_only		// include server only files
-			};
-
 			enum evp_status : unsigned int {
 				ok,
 				error,
@@ -94,8 +85,8 @@ namespace dvsku {
 			 *			m_code == evp_status::ok			packed successfully;
 			 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 			*/
-			static evp_result pack(const std::string& input, const std::string& output,
-				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none);
+			static evp_result pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output,
+				bool encrypt = false, const std::string& key = "", FILE_FILTER_REF_C filter = FILE_FILTER_NONE);
 
 			/*
 			 *	Unpacks .evp archive contents into a folder
@@ -109,7 +100,7 @@ namespace dvsku {
 			 *			m_code == evp_status::ok			unpacked successfully;
 			 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 			*/
-			static evp_result unpack(const std::string& input, const std::string& output,
+			static evp_result unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output,
 				bool decrypt = false, const std::string& key = "");
 
 			/*
@@ -135,8 +126,8 @@ namespace dvsku {
 			 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 			 *			m_code == evp_status::cancelled		packing cancelled by user
 			*/
-			static void pack_async(const std::string& input, const std::string& output,
-				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
+			static void pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output,
+				bool encrypt = false, const std::string& key = "", FILE_FILTER_REF_C filter = FILE_FILTER_NONE,
 				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 				notify_finish finished = nullptr, notify_error error = nullptr);
 
@@ -158,7 +149,7 @@ namespace dvsku {
 			 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 			 *			m_code == evp_status::cancelled		unpacking cancelled by user
 			*/
-			static void unpack_async(const std::string& input, const std::string& output,
+			static void unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output,
 				bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 				notify_start started = nullptr, notify_update update = nullptr,
 				notify_finish finished = nullptr, notify_error error = nullptr);
@@ -168,28 +159,26 @@ namespace dvsku {
 			 * 
 			 *	@param input -> file path
 			*/
-			static bool is_encrypted(const std::string& input);
+			static bool is_encrypted(FILE_PATH_REF_C input);
 
 		protected:
-			static evp_result pack_impl(const filesys::path& input, const filesys::path& output,
-				bool encrypt = false, const std::string& key = "", const file_filter& filter = file_filter::none,
+			static evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output,
+				bool encrypt = false, const std::string& key = "", FILE_FILTER_REF_C filter = FILE_FILTER_NONE,
 				const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 				notify_finish finished = nullptr, notify_error error = nullptr);
 
-			static evp_result unpack_impl(const filesys::path& input, const filesys::path& output,
+			static evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output,
 				bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 				notify_start started = nullptr, notify_update update = nullptr,
 				notify_finish finished = nullptr, notify_error error = nullptr);
 
 			static void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 			
-			static evp_result is_evp_header_valid(const filesys::path& input);
+			static evp_result is_evp_header_valid(FILE_PATH_REF_C input);
 
-			static evp_result are_pack_paths_valid(const std::string& input, const std::string& output);
+			static evp_result are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output);
 
-			static evp_result are_unpack_paths_valid(const std::string& input, const std::string& output);
-
-			static std::vector<filesys::path> get_files(const filesys::path& dir, const file_filter& filter = file_filter::none);
+			static evp_result are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output);
 	};
 }
 

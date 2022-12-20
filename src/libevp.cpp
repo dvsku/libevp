@@ -7,8 +7,8 @@
 #include "lib/md5/md5.h"
 #include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
-dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter)
+dvsku::evp::evp_result dvsku::evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
+	const std::string& key, FILE_FILTER_REF_C filter)
 {
 	evp_result result;
 	result = are_pack_paths_valid(input, output);
@@ -16,19 +16,19 @@ dvsku::evp::evp_result dvsku::evp::pack(const std::string& input, const std::str
 	if (result.m_code != evp_status::ok)
 		return result;
 
-	filesys::path input_path(input);
-	filesys::path output_path(output);
+	FILE_PATH input_path(input);
+	FILE_PATH output_path(output);
 
 	if (!input_path.is_absolute())
-		input_path = filesys::absolute(input);
+		input_path = std_filesys::absolute(input);
 
 	if (!output_path.is_absolute())
-		output_path = filesys::absolute(output);
+		output_path = std_filesys::absolute(output);
 
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::string& output, bool decrypt,
+dvsku::evp::evp_result dvsku::evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
 	const std::string& key)
 {
 	evp_result result;
@@ -42,20 +42,20 @@ dvsku::evp::evp_result dvsku::evp::unpack(const std::string& input, const std::s
 	if (result.m_code != evp_status::ok)
 		return result;
 
-	filesys::path input_path(input);
-	filesys::path output_path(output);
+	FILE_PATH input_path(input);
+	FILE_PATH output_path(output);
 
 	if (!input_path.is_absolute())
-		input_path = filesys::absolute(input);
+		input_path = std_filesys::absolute(input);
 
 	if (!output_path.is_absolute())
-		output_path = filesys::absolute(output);
+		output_path = std_filesys::absolute(output);
 
 	return unpack_impl(input_path, output_path, decrypt, key);
 }
 
-void dvsku::evp::pack_async(const std::string& input, const std::string& output, bool encrypt,
-	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+void dvsku::evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
+	const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
 	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
@@ -67,21 +67,21 @@ void dvsku::evp::pack_async(const std::string& input, const std::string& output,
 			return;
 		}
 
-		filesys::path input_path(input);
-		filesys::path output_path(output);
+		FILE_PATH input_path(input);
+		FILE_PATH output_path(output);
 
 		if (!input_path.is_absolute())
-			input_path = filesys::absolute(input);
+			input_path = std_filesys::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = filesys::absolute(output);
+			output_path = std_filesys::absolute(output);
 
 		pack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-void dvsku::evp::unpack_async(const std::string& input, const std::string& output, bool decrypt,
+void dvsku::evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
 	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
@@ -101,22 +101,22 @@ void dvsku::evp::unpack_async(const std::string& input, const std::string& outpu
 			return;
 		}
 
-		filesys::path input_path(input);
-		filesys::path output_path(output);
+		FILE_PATH input_path(input);
+		FILE_PATH output_path(output);
 
 		if (!input_path.is_absolute())
-			input_path = filesys::absolute(input);
+			input_path = std_filesys::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = filesys::absolute(output);
+			output_path = std_filesys::absolute(output);
 
 		unpack_impl(input_path, output_path, decrypt, key, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const filesys::path& output, bool encrypt, 
-	const std::string& key, const file_filter& filter, const bool* cancel, notify_start started, notify_update update,
+dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
+	const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
 	std::vector<file_desc> input_files;
@@ -125,10 +125,10 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 
 	dvsku::crypt::libdvsku_crypt crypt(key.c_str());
 
-	auto files = get_files(input);
+	auto files = dvsku::filesys::utilities::get_files_evp(input, filter);
 
-	float prog_change_x = 85.0 / files.size();
-	float prog_change_y = 15.0 / files.size();
+	float prog_change_x = 90.0 / files.size();
+	float prog_change_y = 10.0 / files.size();
 	
 	if (started)
 		started();
@@ -139,7 +139,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	fout.write(EVP_V1_HEADER, sizeof(EVP_V1_HEADER));
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
-	for (filesys::path file : files) {
+	for (FILE_PATH file : files) {
 		if (cancel != nullptr) {
 			if (*cancel) {
 				if (finished)
@@ -237,7 +237,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(const filesys::path& input, const f
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const filesys::path& output, bool decrypt,
+dvsku::evp::evp_result dvsku::evp::unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
 	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
@@ -313,16 +313,16 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(const filesys::path& input, const
 		curr_name_block_offset += OFFSET_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;
 
-		filesys::path dir_path(output);
+		FILE_PATH dir_path(output);
 		dir_path /= output_file.m_path;
 		dir_path.remove_filename();
 
-		filesys::path full_path(output);
+		FILE_PATH full_path(output);
 		full_path /= output_file.m_path;
 
-		if (!filesys::is_directory(dir_path)) {
-			filesys::create_directories(dir_path);
-			filesys::permissions(dir_path, std::experimental::filesystem::perms::all);
+		if (!std_filesys::is_directory(dir_path)) {
+			std_filesys::create_directories(dir_path);
+			std_filesys::permissions(dir_path, std::experimental::filesystem::perms::all);
 		}
 
 		std::ofstream fout;
@@ -358,11 +358,11 @@ void dvsku::evp::serialize_file_desc(const file_desc& file_desc, std::vector<uns
 	buffer.insert(buffer.end(), file_desc.m_data_hash, file_desc.m_data_hash + sizeof(file_desc.m_data_hash));
 }
 
-bool dvsku::evp::is_encrypted(const std::string& input) {
+bool dvsku::evp::is_encrypted(FILE_PATH_REF_C input) {
 	return false;
 }
 
-dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(const filesys::path& input) {
+dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(FILE_PATH_REF_C input) {
 	std::ifstream fin(input, std::ios::binary);
 	
 	if (!fin.is_open())
@@ -380,24 +380,24 @@ dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(const filesys::path& inpu
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::are_pack_paths_valid(const std::string& input, const std::string& output) {
-	filesys::path input_path(input);
-	filesys::path output_path(output);
+dvsku::evp::evp_result dvsku::evp::are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output) {
+	FILE_PATH input_path(input);
+	FILE_PATH output_path(output);
 
 	try {
 		if (!input_path.is_absolute())
-			input_path = filesys::absolute(input);
+			input_path = std_filesys::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = filesys::absolute(output);
+			output_path = std_filesys::absolute(output);
 
-		if (!filesys::exists(input_path))
+		if (!std_filesys::exists(input_path))
 			return evp_result(evp_status::error, "Input directory doesn't exist");
 
-		if (!filesys::is_directory(input_path))
+		if (!std_filesys::is_directory(input_path))
 			return evp_result(evp_status::error, "Input has to be a directory");
 
-		if (filesys::is_directory(output_path))
+		if (std_filesys::is_directory(output_path))
 			return evp_result(evp_status::error, "Output cannot be a directory");
 
 		if (!output_path.has_filename())
@@ -416,24 +416,24 @@ dvsku::evp::evp_result dvsku::evp::are_pack_paths_valid(const std::string& input
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::are_unpack_paths_valid(const std::string& input, const std::string& output) {
-	filesys::path input_path(input);
-	filesys::path output_path(output);
+dvsku::evp::evp_result dvsku::evp::are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output) {
+	FILE_PATH input_path(input);
+	FILE_PATH output_path(output);
 
 	try {
 		if (!input_path.is_absolute())
-			input_path = filesys::absolute(input);
+			input_path = std_filesys::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = filesys::absolute(output);
+			output_path = std_filesys::absolute(output);
 
-		if (!filesys::exists(output_path))
+		if (!std_filesys::exists(output_path))
 			return evp_result(evp_status::error, "Output directory doesn't exist");
 
-		if (!filesys::is_directory(output_path))
+		if (!std_filesys::is_directory(output_path))
 			return evp_result(evp_status::error, "Output has to be a directory");
 
-		if (filesys::is_directory(input_path))
+		if (std_filesys::is_directory(input_path))
 			return evp_result(evp_status::error, "Input cannot be a directory");
 
 		if (!input_path.has_filename())
@@ -450,15 +450,4 @@ dvsku::evp::evp_result dvsku::evp::are_unpack_paths_valid(const std::string& inp
 	}
 
 	return evp_result();
-}
-
-std::vector<filesys::path> dvsku::evp::get_files(const filesys::path& dir, const file_filter& filter) {
-	std::vector<filesys::path> results;
-
-	for (auto const& dir_entry : filesys::recursive_directory_iterator(dir)) {
-		if (filesys::is_regular_file(dir_entry.path()))
-			results.push_back(dir_entry.path());
-	}
-
-	return results;
 }

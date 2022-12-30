@@ -66,6 +66,7 @@ namespace dvsku::crypt {
 			typedef std::function<void(crypt_result)> notify_error;
 
 		public:
+			libdvsku_crypt();
 			libdvsku_crypt(KEY key);
 			virtual ~libdvsku_crypt();
 
@@ -178,6 +179,8 @@ namespace dvsku::crypt {
 			crypt_result decrypt_and_decompress_buffer(BUF8_REF buffer);
 
 			bool is_buffer_encrypted(BUF8_REF_C buffer);
+
+			void set_key(KEY key);
 
 		protected:
 			void generate_keys(KEY key);

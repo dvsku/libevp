@@ -308,7 +308,7 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(FILE_PATH_REF_C input, FOLDER_PAT
 		fin.read((char*)output_file.m_data.data(), output_file.m_data_size);
 
 		if (decrypt)
-			crypt.decrypt_and_decompress_buffer(output_file.m_data);
+			crypt.decrypt_buffer(output_file.m_data);
 
 		curr_name_block_offset += OFFSET_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;

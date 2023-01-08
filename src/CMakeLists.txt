@@ -5,7 +5,7 @@ PROJECT ("libevp" C CXX)
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	SET(CMAKE_CXX_FLAGS "-std=c++17 -m32 -ldl -lpthread -lstdc++fs -Wall -fpic -O2")
 ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	SET(CMAKE_CXX_FLAGS "/std:c++17 /D \"WIN32\" /O2 /Zi /EHsc")
+	SET(CMAKE_CXX_FLAGS "/std:c++17 /D \"WIN32\" /O2 /Zi /EHsc /GL- /LTCG-")
 ENDIF()
 
 ADD_LIBRARY(${PROJECT_NAME} STATIC  "libevp.h" "libevp.cpp" "lib/md5/md5.cpp" )

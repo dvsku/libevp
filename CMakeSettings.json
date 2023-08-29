@@ -1,0 +1,64 @@
+﻿{
+  "configurations": [
+    {
+      "name": "1. Windows x86 Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": ""
+    },
+    {
+      "name": "2. Windows x86 Release",
+      "generator": "Ninja",
+      "configurationType": "Release",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": ""
+    },
+    {
+      "name": "3. Unix x86 Debug",
+      "generator": "Unix Makefiles",
+      "configurationType": "Debug",
+      "cmakeExecutable": "cmake",
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x86" ],
+      "remoteMachineName": "${defaultRemoteMachineName}",
+      "remoteCMakeListsRoot": "$HOME/vs/libevp/src",
+      "remoteBuildRoot": "$HOME/vs/libevp/out/build/${name}",
+      "remoteInstallRoot": "$HOME/vs/libevp/out/install/${name}",
+      "remoteCopySources": true,
+      "rsyncCommandArgs": "-t --delete --delete-excluded",
+      "remoteCopyBuildOutput": true,
+      "remoteCopySourcesMethod": "rsync"
+    },
+    {
+      "name": "4. Unix x86 Release",
+      "generator": "Unix Makefiles",
+      "configurationType": "Release",
+      "cmakeExecutable": "cmake",
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x86" ],
+      "remoteMachineName": "${defaultRemoteMachineName}",
+      "remoteCMakeListsRoot": "$HOME/vs/libevp/src",
+      "remoteBuildRoot": "$HOME/vs/libevp/out/build/${name}",
+      "remoteInstallRoot": "$HOME/vs/libevp/out/install/${name}",
+      "remoteCopySources": true,
+      "rsyncCommandArgs": "-t --delete --delete-excluded",
+      "remoteCopyBuildOutput": true,
+      "remoteCopySourcesMethod": "rsync"
+    }
+  ]
+}

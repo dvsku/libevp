@@ -7,14 +7,66 @@
 #include "lib/md5/md5.h"
 #include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
-dvsku::evp::evp_result dvsku::evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
+using namespace libevp;
+
+///////////////////////////////////////////////////////////////////////////////
+// UTILITIES
+///////////////////////////////////////////////////////////////////////////////
+
+struct file_desc {
+	std::string m_path;
+	std::vector<uint8_t> m_data;
+	unsigned char m_data_hash[16];
+	size_t m_data_size;
+	size_t m_path_size;
+	size_t m_data_start_offset;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPL FORWARD DECLARE
+///////////////////////////////////////////////////////////////////////////////
+
+evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt = false, const std::string& key = "", 
+	FILE_FILTER_REF_C filter = FILE_FILTER_NONE, const bool* cancel = nullptr, evp::notify_start started = nullptr, 
+	evp::notify_update update = nullptr, evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
+
+evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt = false, const std::string& key = "", 
+	const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
+	evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
+
+void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
+
+evp_result is_evp_header_valid(FILE_PATH_REF_C input);
+
+evp_result are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output);
+
+evp_result are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output);
+
+///////////////////////////////////////////////////////////////////////////////
+// EVP RESULT
+///////////////////////////////////////////////////////////////////////////////
+
+evp_result::evp_result() {}
+evp_result::evp_result(evp_status _status) : status(_status) {}
+evp_result::evp_result(evp_status _status, const std::string& _msg) : status(_status), msg(_msg) {}
+
+bool evp_result::operator!() const {
+	return status != evp_status::ok;
+}
+
+evp_result::operator bool() const {
+	return status == evp_status::ok;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// EVP
+///////////////////////////////////////////////////////////////////////////////
+
+evp_result evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
 	const std::string& key, FILE_FILTER_REF_C filter)
 {
-	evp_result result;
-	result = are_pack_paths_valid(input, output);
-
-	if (result.m_code != evp_status::ok)
-		return result;
+	auto result = are_pack_paths_valid(input, output);
+	if (!result) return result;
 
 	FILE_PATH input_path(input);
 	FILE_PATH output_path(output);
@@ -28,19 +80,14 @@ dvsku::evp::evp_result dvsku::evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
+evp_result evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
 	const std::string& key)
 {
-	evp_result result;
-	result = are_unpack_paths_valid(input, output);
-
-	if (result.m_code != evp_status::ok) 
-		return result;
+	auto result = are_unpack_paths_valid(input, output);
+	if (!result) return result;
 	
 	result = is_evp_header_valid(input);
-
-	if (result.m_code != evp_status::ok)
-		return result;
+	if (!result) return result;
 
 	FILE_PATH input_path(input);
 	FILE_PATH output_path(output);
@@ -54,7 +101,7 @@ dvsku::evp::evp_result dvsku::evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF
 	return unpack_impl(input_path, output_path, decrypt, key);
 }
 
-void dvsku::evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
+void evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
 	const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
@@ -62,8 +109,10 @@ void dvsku::evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, boo
 		evp_result result;
 		result = are_pack_paths_valid(input, output);
 
-		if (result.m_code != evp_status::ok) {
-			if (error) error(result);
+		if (!result) {
+			if (error) 
+				error(result);
+
 			return;
 		}
 
@@ -81,7 +130,7 @@ void dvsku::evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, boo
 	t.detach();
 }
 
-void dvsku::evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
+void evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
 	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
@@ -89,15 +138,19 @@ void dvsku::evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, b
 		evp_result result;
 		result = are_unpack_paths_valid(input, output);
 
-		if (result.m_code != evp_status::ok) {
-			if (error) error(result);
+		if (!result) {
+			if (error) 
+				error(result);
+
 			return;
 		}
 
 		result = is_evp_header_valid(input);
 
-		if (result.m_code != evp_status::ok) {
-			if (error) error(result);
+		if (result) {
+			if (error) 
+				error(result);
+
 			return;
 		}
 
@@ -115,10 +168,15 @@ void dvsku::evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, b
 	t.detach();
 }
 
-dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
-	const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, notify_start started, notify_update update,
-	notify_finish finished, notify_error error)
-{
+bool evp::is_encrypted(FILE_PATH_REF_C input) {
+	return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// IMPL
+///////////////////////////////////////////////////////////////////////////////
+
+evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt, const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) {
 	std::vector<file_desc> input_files;
 	size_t curr_data_offset = DATA_START_OFFSET;
 	size_t footer_size = 0;
@@ -129,7 +187,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_
 
 	float prog_change_x = 90.0 / files.size();
 	float prog_change_y = 10.0 / files.size();
-	
+
 	if (started)
 		started();
 
@@ -143,7 +201,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_
 		if (cancel != nullptr) {
 			if (*cancel) {
 				if (finished)
-					finished(dvsku::evp::evp_status::cancelled);
+					finished(evp_status::cancelled);
 
 				return evp_result();
 			}
@@ -193,7 +251,7 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_
 		if (cancel != nullptr) {
 			if (*cancel) {
 				if (finished)
-					finished(dvsku::evp::evp_status::cancelled);
+					finished(evp_status::cancelled);
 
 				return evp_result();
 			}
@@ -230,17 +288,14 @@ dvsku::evp::evp_result dvsku::evp::pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_
 	fout.write((char*)&num_files, sizeof(uint64_t));
 
 	if (finished)
-		finished(dvsku::evp::evp_status::ok);
+		finished(evp_status::ok);
 
 	fout.close();
 
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
-	const std::string& key, const bool* cancel, notify_start started, notify_update update,
-	notify_finish finished, notify_error error)
-{
+evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt, const std::string& key, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) {
 	size_t data_block_end = 0;
 	size_t names_block_size = 0;
 	uint64_t file_count = 0;
@@ -274,7 +329,7 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(FILE_PATH_REF_C input, FOLDER_PAT
 		if (cancel != nullptr) {
 			if (*cancel) {
 				if (finished)
-					finished(dvsku::evp::evp_status::cancelled);
+					finished(evp_status::cancelled);
 
 				return evp_result();
 			}
@@ -342,12 +397,12 @@ dvsku::evp::evp_result dvsku::evp::unpack_impl(FILE_PATH_REF_C input, FOLDER_PAT
 	}
 
 	if (finished)
-		finished(dvsku::evp::evp_status::ok);
-	
+		finished(evp_status::ok);
+
 	return evp_result();
 }
 
-void dvsku::evp::serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {
+void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {
 	buffer.insert(buffer.end(), (unsigned char*)&(file_desc.m_path_size), (unsigned char*)&(file_desc.m_path_size) + sizeof(size_t));
 	buffer.insert(buffer.end(), file_desc.m_path.begin(), file_desc.m_path.end());
 	buffer.insert(buffer.end(), (unsigned char*)&(file_desc.m_data_start_offset), (unsigned char*)&(file_desc.m_data_start_offset) + sizeof(size_t));
@@ -358,13 +413,9 @@ void dvsku::evp::serialize_file_desc(const file_desc& file_desc, std::vector<uns
 	buffer.insert(buffer.end(), file_desc.m_data_hash, file_desc.m_data_hash + sizeof(file_desc.m_data_hash));
 }
 
-bool dvsku::evp::is_encrypted(FILE_PATH_REF_C input) {
-	return false;
-}
-
-dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(FILE_PATH_REF_C input) {
+evp_result is_evp_header_valid(FILE_PATH_REF_C input) {
 	std::ifstream fin(input, std::ios::binary);
-	
+
 	if (!fin.is_open())
 		return evp_result(evp_status::error, "Could not open input file.");
 
@@ -380,7 +431,7 @@ dvsku::evp::evp_result dvsku::evp::is_evp_header_valid(FILE_PATH_REF_C input) {
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output) {
+evp_result are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output) {
 	FILE_PATH input_path(input);
 	FILE_PATH output_path(output);
 
@@ -416,7 +467,7 @@ dvsku::evp::evp_result dvsku::evp::are_pack_paths_valid(FOLDER_PATH_REF_C input,
 	return evp_result();
 }
 
-dvsku::evp::evp_result dvsku::evp::are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output) {
+evp_result are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output) {
 	FILE_PATH input_path(input);
 	FILE_PATH output_path(output);
 

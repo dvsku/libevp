@@ -3,9 +3,10 @@
 PROJECT ("libevp" C CXX)
 
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	SET(CMAKE_CXX_FLAGS "-std=c++17 -m32 -ldl -lpthread -lstdc++fs -Wall -fpic -O2")
+	SET(CMAKE_CXX_STANDARD 20)
+	SET(CMAKE_CXX_FLAGS "-m32 -ldl -lpthread -lstdc++fs -Wall -fpic -O2")
 ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17 /D \"WIN32\" /EHsc /GL-")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++20 /D \"WIN32\" /EHsc /GL-")
 	
 	IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
 		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Od /Zi")

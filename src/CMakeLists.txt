@@ -16,9 +16,9 @@ ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	SET_TARGET_PROPERTIES(libevp PROPERTIES LINK_FLAGS "/LTCG-")
 
 	IF (CMAKE_BUILD_TYPE STREQUAL "Debug")
-		TARGET_LINK_LIBRARIES(libevp ${CMAKE_SOURCE_DIR}/lib/libdvsku_crypt/libdvsku_crypt_debug.lib)
+		TARGET_LINK_LIBRARIES(libevp ${CMAKE_SOURCE_DIR}/src/lib/libdvsku_crypt/libdvsku_crypt_debug.lib)
 	ELSE()
-		TARGET_LINK_LIBRARIES(libevp ${CMAKE_SOURCE_DIR}/lib/libdvsku_crypt/libdvsku_crypt_release.lib)
+		TARGET_LINK_LIBRARIES(libevp ${CMAKE_SOURCE_DIR}/src/lib/libdvsku_crypt/libdvsku_crypt_release.lib)
 	ENDIF()
 ENDIF()
 

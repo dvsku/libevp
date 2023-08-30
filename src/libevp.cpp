@@ -58,14 +58,14 @@ struct file_desc {
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir,
+std::vector<evp::FILE_PATH> _get_filtered_paths(const evp::FILE_PATH& dir,
 	file_filter filter = file_filter::none);
 
-bool compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders);
+bool _compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders);
 
-bool compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files);
+bool _compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files);
 
-bool compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions);
+bool _compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions);
 
 dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
 	file_filter filter = file_filter::none, const bool* cancel = nullptr, evp::notify_start started = nullptr,
@@ -199,7 +199,7 @@ bool evp::is_encrypted(const FILE_PATH& input) {
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir, file_filter filter) {
+std::vector<evp::FILE_PATH> _get_filtered_paths(const evp::FILE_PATH& dir, file_filter filter) {
 	std::vector<evp::FILE_PATH> results;
 
 	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(dir)) {
@@ -207,8 +207,8 @@ std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir, file_f
 			switch (filter) {
 				case file_filter::client_only:
 				{
-					if (!compare_folders(dir_entry.path(), CLIENT_FOLDERS)) {
-						if (compare_files(dir_entry.path(), CLIENT_FILES))
+					if (!_compare_folders(dir_entry.path(), CLIENT_FOLDERS)) {
+						if (_compare_files(dir_entry.path(), CLIENT_FILES))
 							results.push_back(dir_entry.path());
 					}
 					else {
@@ -219,8 +219,8 @@ std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir, file_f
 				}
 				case file_filter::server_only:
 				{
-					if (!compare_folders(dir_entry.path(), SERVER_FOLDERS)) {
-						if (compare_files(dir_entry.path(), SERVER_FILES))
+					if (!_compare_folders(dir_entry.path(), SERVER_FOLDERS)) {
+						if (_compare_files(dir_entry.path(), SERVER_FILES))
 							results.push_back(dir_entry.path());
 					}
 					else {
@@ -237,7 +237,7 @@ std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir, file_f
 	return results;
 }
 
-bool compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders) {
+bool _compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders) {
 	const std::string dir = path.parent_path().generic_string();
 	for (const std::string& folder : folders) {
 		if (dir.find(folder) != std::string::npos)
@@ -246,7 +246,7 @@ bool compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>&
 	return false;
 }
 
-bool compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files) {
+bool _compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files) {
 	for (const std::string& file : files) {
 		if (path.filename().generic_string() == file)
 			return true;
@@ -254,7 +254,7 @@ bool compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& f
 	return false;
 }
 
-bool compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions) {
+bool _compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions) {
 	for (const std::string& extension : extensions) {
 		if (path.extension().generic_string() == extension)
 			return true;
@@ -272,7 +272,7 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 
 	libdvsku_crypt crypt(key.c_str());
 
-	auto files = get_filtered_paths(input, filter);
+	auto files = _get_filtered_paths(input, filter);
 
 	float prog_change_x = 90.0f / files.size();
 	float prog_change_y = 10.0f / files.size();
@@ -346,6 +346,9 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 		int start_index = input_file.m_path.find(input.generic_string());
 		input_file.m_path.erase(start_index, input.generic_string().size());
 
+		// swap slash directions
+		std::replace(input_file.m_path.begin(), input_file.m_path.end(), '/', '\\');
+			
 		// remove leading slash
 		if (input_file.m_path[0] == '\\')
 			input_file.m_path.erase(0, 1);

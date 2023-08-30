@@ -8,10 +8,42 @@
 #include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
 using namespace libevp;
+using namespace libdvsku;
+using namespace libdvsku::crypt;
 
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
 ///////////////////////////////////////////////////////////////////////////////
+
+// Folders to include when packing evp
+const std::vector<std::string> CLIENT_FOLDERS {
+	"local", "maps", "model", "model2", "script", "ui", "audio", "music", "scene"
+};
+
+// Files to include
+const std::vector<std::string> CLIENT_FILES {
+	"client_engine.ini", "client_game.ini"
+};
+
+// Extensions to exclude
+const std::vector<std::string> EXCLUDE_CLIENT_EXTENSIONS {
+	".wav", ".ogg", ".db", ".ifl"
+};
+
+// Folders to include
+const std::vector<std::string> SERVER_FOLDERS {
+	"local", "maps", "script"
+};
+
+// Files to include
+const std::vector<std::string> SERVER_FILES {
+	"server_engine.ini", "server_game.ini", "server_user.ini"
+};
+
+// Extensions to exclude
+const std::vector<std::string> EXCLUDE_SERVER_EXTENSIONS {
+	""
+};
 
 struct file_desc {
 	std::string m_path;
@@ -26,44 +58,37 @@ struct file_desc {
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt = false, const std::string& key = "", 
-	FILE_FILTER_REF_C filter = FILE_FILTER_NONE, const bool* cancel = nullptr, evp::notify_start started = nullptr, 
+std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir,
+	file_filter filter = file_filter::none);
+
+bool compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders);
+
+bool compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files);
+
+bool compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions);
+
+dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
+	file_filter filter = file_filter::none, const bool* cancel = nullptr, evp::notify_start started = nullptr,
 	evp::notify_update update = nullptr, evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt = false, const std::string& key = "", 
+dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt = false, const std::string& key = "",
 	const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
 	evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
 void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 
-evp_result is_evp_header_valid(FILE_PATH_REF_C input);
+dv_result is_evp_header_valid(const evp::FILE_PATH& input);
 
-evp_result are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output);
+dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
 
-evp_result are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output);
-
-///////////////////////////////////////////////////////////////////////////////
-// EVP RESULT
-///////////////////////////////////////////////////////////////////////////////
-
-evp_result::evp_result() {}
-evp_result::evp_result(evp_status _status) : status(_status) {}
-evp_result::evp_result(evp_status _status, const std::string& _msg) : status(_status), msg(_msg) {}
-
-bool evp_result::operator!() const {
-	return status != evp_status::ok;
-}
-
-evp_result::operator bool() const {
-	return status == evp_status::ok;
-}
+dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
 
 ///////////////////////////////////////////////////////////////////////////////
-// EVP
+// PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-evp_result evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
-	const std::string& key, FILE_FILTER_REF_C filter)
+dv_result evp::pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt, 
+	const std::string& key, file_filter filter)
 {
 	auto result = are_pack_paths_valid(input, output);
 	if (!result) return result;
@@ -72,15 +97,15 @@ evp_result evp::pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encry
 	FILE_PATH output_path(output);
 
 	if (!input_path.is_absolute())
-		input_path = std_filesys::absolute(input);
+		input_path = std::filesystem::absolute(input);
 
 	if (!output_path.is_absolute())
-		output_path = std_filesys::absolute(output);
+		output_path = std::filesystem::absolute(output);
 
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-evp_result evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
+dv_result evp::unpack(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
 	const std::string& key)
 {
 	auto result = are_unpack_paths_valid(input, output);
@@ -93,21 +118,20 @@ evp_result evp::unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 	FILE_PATH output_path(output);
 
 	if (!input_path.is_absolute())
-		input_path = std_filesys::absolute(input);
+		input_path = std::filesystem::absolute(input);
 
 	if (!output_path.is_absolute())
-		output_path = std_filesys::absolute(output);
+		output_path = std::filesystem::absolute(output);
 
 	return unpack_impl(input_path, output_path, decrypt, key);
 }
 
-void evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt,
-	const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, notify_start started, notify_update update,
+void evp::pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt, 
+	const std::string& key, file_filter filter, const bool* cancel, notify_start started, notify_update update, 
 	notify_finish finished, notify_error error)
 {
 	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
-		evp_result result;
-		result = are_pack_paths_valid(input, output);
+		auto result = are_pack_paths_valid(input, output);
 
 		if (!result) {
 			if (error) 
@@ -120,23 +144,22 @@ void evp::pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encry
 		FILE_PATH output_path(output);
 
 		if (!input_path.is_absolute())
-			input_path = std_filesys::absolute(input);
+			input_path = std::filesystem::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = std_filesys::absolute(output);
+			output_path = std::filesystem::absolute(output);
 
 		pack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-void evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt,
+void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
 	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
 	std::thread t([input, output, cancel, decrypt, key, started, update, finished, error] {
-		evp_result result;
-		result = are_unpack_paths_valid(input, output);
+		auto result = are_unpack_paths_valid(input, output);
 
 		if (!result) {
 			if (error) 
@@ -158,17 +181,17 @@ void evp::unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 		FILE_PATH output_path(output);
 
 		if (!input_path.is_absolute())
-			input_path = std_filesys::absolute(input);
+			input_path = std::filesystem::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = std_filesys::absolute(output);
+			output_path = std::filesystem::absolute(output);
 
 		unpack_impl(input_path, output_path, decrypt, key, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-bool evp::is_encrypted(FILE_PATH_REF_C input) {
+bool evp::is_encrypted(const FILE_PATH& input) {
 	return false;
 }
 
@@ -176,17 +199,83 @@ bool evp::is_encrypted(FILE_PATH_REF_C input) {
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encrypt, const std::string& key, FILE_FILTER_REF_C filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) {
+std::vector<evp::FILE_PATH> get_filtered_paths(const evp::FILE_PATH& dir, file_filter filter) {
+	std::vector<evp::FILE_PATH> results;
+
+	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(dir)) {
+		if (std::filesystem::is_regular_file(dir_entry.path())) {
+			switch (filter) {
+				case file_filter::client_only:
+				{
+					if (!compare_folders(dir_entry.path(), CLIENT_FOLDERS)) {
+						if (compare_files(dir_entry.path(), CLIENT_FILES))
+							results.push_back(dir_entry.path());
+					}
+					else {
+						results.push_back(dir_entry.path());
+					}
+
+					break;
+				}
+				case file_filter::server_only:
+				{
+					if (!compare_folders(dir_entry.path(), SERVER_FOLDERS)) {
+						if (compare_files(dir_entry.path(), SERVER_FILES))
+							results.push_back(dir_entry.path());
+					}
+					else {
+						results.push_back(dir_entry.path());
+					}
+
+					break;
+				}
+				default: results.push_back(dir_entry.path()); break;
+			}
+		}
+	}
+
+	return results;
+}
+
+bool compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders) {
+	const std::string dir = path.parent_path().generic_string();
+	for (const std::string& folder : folders) {
+		if (dir.find(folder) != std::string::npos)
+			return true;
+	}
+	return false;
+}
+
+bool compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files) {
+	for (const std::string& file : files) {
+		if (path.filename().generic_string() == file)
+			return true;
+	}
+	return false;
+}
+
+bool compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions) {
+	for (const std::string& extension : extensions) {
+		if (path.extension().generic_string() == extension)
+			return true;
+	}
+	return false;
+}
+
+dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt, const std::string& key, 
+	file_filter filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, 
+	evp::notify_error error) 
+{
 	std::vector<file_desc> input_files;
 	size_t curr_data_offset = DATA_START_OFFSET;
 	size_t footer_size = 0;
 
-	dvsku::crypt::libdvsku_crypt crypt(key.c_str());
+	libdvsku_crypt crypt(key.c_str());
 
-	auto files = dvsku::filesys::utilities::get_files_evp(input, filter);
+	auto files = get_filtered_paths(input, filter);
 
-	float prog_change_x = 90.0 / files.size();
-	float prog_change_y = 10.0 / files.size();
+	float prog_change_x = 90.0f / files.size();
+	float prog_change_y = 10.0f / files.size();
 
 	if (started)
 		started();
@@ -197,20 +286,18 @@ evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encry
 	fout.write(EVP_V1_HEADER, sizeof(EVP_V1_HEADER));
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
-	for (FILE_PATH file : files) {
-		if (cancel != nullptr) {
-			if (*cancel) {
-				if (finished)
-					finished(evp_status::cancelled);
+	for (evp::FILE_PATH file : files) {
+		if (cancel && *cancel) {
+			if (finished)
+				finished(dv_result(dv_status::cancelled));
 
-				return evp_result();
-			}
+			return dv_result(dv_status::cancelled);
 		}
 
 		file_desc input_file;
 
 		// save file path
-		input_file.m_path = file.u8string();
+		input_file.m_path = file.generic_string();
 
 		// get file content
 		std::ifstream input_stream(file, std::ios::binary);
@@ -248,18 +335,16 @@ evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encry
 	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
 
 	for (file_desc input_file : input_files) {
-		if (cancel != nullptr) {
-			if (*cancel) {
-				if (finished)
-					finished(evp_status::cancelled);
+		if (cancel && *cancel) {
+			if (finished)
+				finished(dv_result(dv_status::cancelled));
 
-				return evp_result();
-			}
+			return dv_result(dv_status::cancelled);
 		}
 
 		// get path relative to input path
-		int start_index = input_file.m_path.find(input.u8string());
-		input_file.m_path.erase(start_index, input.u8string().size());
+		int start_index = input_file.m_path.find(input.generic_string());
+		input_file.m_path.erase(start_index, input.generic_string().size());
 
 		// remove leading slash
 		if (input_file.m_path[0] == '\\')
@@ -288,25 +373,27 @@ evp_result pack_impl(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output, bool encry
 	fout.write((char*)&num_files, sizeof(uint64_t));
 
 	if (finished)
-		finished(evp_status::ok);
+		finished(dv_result());
 
 	fout.close();
 
-	return evp_result();
+	return dv_result();
 }
 
-evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool decrypt, const std::string& key, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) {
+dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt, const std::string& key, 
+	const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
+{
 	size_t data_block_end = 0;
 	size_t names_block_size = 0;
 	uint64_t file_count = 0;
 
-	dvsku::crypt::libdvsku_crypt crypt(key.c_str());
+	libdvsku_crypt crypt(key.c_str());
 
 	std::ifstream fin;
 	fin.open(input, std::ios::binary);
 
 	if (!fin.is_open()) {
-		evp_result result(evp_status::error, "Could not open input file");
+		dv_result result(dv_status::error, "Could not open input file");
 		if (error) error(result);
 		return result;
 	}
@@ -317,7 +404,7 @@ evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 	fin.read((char*)&names_block_size, sizeof(size_t));
 	fin.read((char*)&file_count, sizeof(uint64_t));
 
-	float prog_change = 100.0 / file_count;
+	float prog_change = 100.0f / file_count;
 
 	size_t curr_name_block_offset = data_block_end + 16;
 	size_t curr_data_block_offset = DATA_START_OFFSET;
@@ -326,13 +413,11 @@ evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 		started();
 
 	for (int i = 0; i < file_count; i++) {
-		if (cancel != nullptr) {
-			if (*cancel) {
-				if (finished)
-					finished(evp_status::cancelled);
+		if (cancel && *cancel) {
+			if (finished)
+				finished(dv_result(dv_status::cancelled));
 
-				return evp_result();
-			}
+			return dv_result(dv_status::cancelled);
 		}
 
 		file_desc output_file;
@@ -368,23 +453,23 @@ evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 		curr_name_block_offset += OFFSET_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;
 
-		FILE_PATH dir_path(output);
+		evp::FILE_PATH dir_path(output);
 		dir_path /= output_file.m_path;
 		dir_path.remove_filename();
 
-		FILE_PATH full_path(output);
+		evp::FILE_PATH full_path(output);
 		full_path /= output_file.m_path;
 
-		if (!std_filesys::is_directory(dir_path)) {
-			std_filesys::create_directories(dir_path);
-			std_filesys::permissions(dir_path, std::experimental::filesystem::perms::all);
+		if (!std::filesystem::is_directory(dir_path)) {
+			std::filesystem::create_directories(dir_path);
+			std::filesystem::permissions(dir_path, std::filesystem::perms::all);
 		}
 
 		std::ofstream fout;
 		fout.open(full_path, std::ios::binary);
 
 		if (!fout.is_open()) {
-			evp_result result(evp_status::error, "Could not write file : " + output_file.m_path);
+			dv_result result(dv_status::error, "Could not write file : " + output_file.m_path);
 			if (error) error(result);
 			return result;
 		}
@@ -397,9 +482,9 @@ evp_result unpack_impl(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output, bool dec
 	}
 
 	if (finished)
-		finished(evp_status::ok);
+		finished(dv_result());
 
-	return evp_result();
+	return dv_result();
 }
 
 void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {
@@ -413,92 +498,92 @@ void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>&
 	buffer.insert(buffer.end(), file_desc.m_data_hash, file_desc.m_data_hash + sizeof(file_desc.m_data_hash));
 }
 
-evp_result is_evp_header_valid(FILE_PATH_REF_C input) {
+dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 	std::ifstream fin(input, std::ios::binary);
 
 	if (!fin.is_open())
-		return evp_result(evp_status::error, "Could not open input file.");
+		return dv_result(dv_status::error, "Could not open input file.");
 
 	char header_buffer[60];
 	fin.read(header_buffer, HEADER_END_OFFSET);
 	fin.close();
 
-	for (int i = 0; i < strlen(header_buffer); i++) {
+	for (size_t i = 0; i < strlen(header_buffer); i++) {
 		if (EVP_V1_HEADER[i] != header_buffer[i])
-			return evp_result(evp_status::error, "Input not an .evp file or .evp version unsupported.");
+			return dv_result(dv_status::error, "Input not an .evp file or .evp version unsupported.");
 	}
 
-	return evp_result();
+	return dv_result();
 }
 
-evp_result are_pack_paths_valid(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output) {
-	FILE_PATH input_path(input);
-	FILE_PATH output_path(output);
+dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
+	evp::FILE_PATH input_path(input);
+	evp::FILE_PATH output_path(output);
 
 	try {
 		if (!input_path.is_absolute())
-			input_path = std_filesys::absolute(input);
+			input_path = std::filesystem::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = std_filesys::absolute(output);
+			output_path = std::filesystem::absolute(output);
 
-		if (!std_filesys::exists(input_path))
-			return evp_result(evp_status::error, "Input directory doesn't exist");
+		if (!std::filesystem::exists(input_path))
+			return dv_result(dv_status::error, "Input directory doesn't exist");
 
-		if (!std_filesys::is_directory(input_path))
-			return evp_result(evp_status::error, "Input has to be a directory");
+		if (!std::filesystem::is_directory(input_path))
+			return dv_result(dv_status::error, "Input has to be a directory");
 
-		if (std_filesys::is_directory(output_path))
-			return evp_result(evp_status::error, "Output cannot be a directory");
+		if (std::filesystem::is_directory(output_path))
+			return dv_result(dv_status::error, "Output cannot be a directory");
 
 		if (!output_path.has_filename())
-			return evp_result(evp_status::error, "Output must be a file with .evp extension");
+			return dv_result(dv_status::error, "Output must be a file with .evp extension");
 
 		if (!output_path.has_extension() || output_path.extension() != ".evp")
-			return evp_result(evp_status::error, "Output extension must be .evp");
+			return dv_result(dv_status::error, "Output extension must be .evp");
 	}
 	catch (const std::exception& ex) {
-		return evp_result(evp_status::error, ex.what());
+		return dv_result(dv_status::error, ex.what());
 	}
 	catch (...) {
-		return evp_result(evp_status::error, "Unknow error occurred.");
+		return dv_result(dv_status::error, "Unknow error occurred.");
 	}
 
-	return evp_result();
+	return dv_result();
 }
 
-evp_result are_unpack_paths_valid(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output) {
-	FILE_PATH input_path(input);
-	FILE_PATH output_path(output);
+dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
+	evp::FILE_PATH input_path(input);
+	evp::FILE_PATH output_path(output);
 
 	try {
 		if (!input_path.is_absolute())
-			input_path = std_filesys::absolute(input);
+			input_path = std::filesystem::absolute(input);
 
 		if (!output_path.is_absolute())
-			output_path = std_filesys::absolute(output);
+			output_path = std::filesystem::absolute(output);
 
-		if (!std_filesys::exists(output_path))
-			return evp_result(evp_status::error, "Output directory doesn't exist");
+		if (!std::filesystem::exists(output_path))
+			return dv_result(dv_status::error, "Output directory doesn't exist");
 
-		if (!std_filesys::is_directory(output_path))
-			return evp_result(evp_status::error, "Output has to be a directory");
+		if (!std::filesystem::is_directory(output_path))
+			return dv_result(dv_status::error, "Output has to be a directory");
 
-		if (std_filesys::is_directory(input_path))
-			return evp_result(evp_status::error, "Input cannot be a directory");
+		if (std::filesystem::is_directory(input_path))
+			return dv_result(dv_status::error, "Input cannot be a directory");
 
 		if (!input_path.has_filename())
-			return evp_result(evp_status::error, "Input must be a file with .evp extension");
+			return dv_result(dv_status::error, "Input must be a file with .evp extension");
 
 		if (!input_path.has_extension() || input_path.extension() != ".evp")
-			return evp_result(evp_status::error, "Input extension must be .evp");
+			return dv_result(dv_status::error, "Input extension must be .evp");
 	}
 	catch (const std::exception& ex) {
-		return evp_result(evp_status::error, ex.what());
+		return dv_result(dv_status::error, ex.what());
 	}
 	catch (...) {
-		return evp_result(evp_status::error, "Unknow error occurred.");
+		return dv_result(dv_status::error, "Unknow error occurred.");
 	}
 
-	return evp_result();
+	return dv_result();
 }

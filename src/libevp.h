@@ -6,8 +6,9 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <filesystem>
 
-#include "lib/libdvsku_crypt/utilities/utilities_filesys.h"
+#include "libdvsku_crypt/libdvsku_crypt.h"
 
 // Bytes that describe v1 of an evp packer
 constexpr char EVP_V1_HEADER[60] {
@@ -28,37 +29,22 @@ constexpr uint32_t HEADER_END_OFFSET = 0x3C;
 constexpr uint32_t OFFSET_BETWEEN_FILE_DESC = 0x24;
 
 namespace libevp {
-	enum class evp_status : unsigned int {
-		ok,
-		error,
-		cancelled
-	};
-
-	struct evp_result {
-		evp_status status	= evp_status::ok;
-		std::string msg		= "";
-
-		evp_result();
-		evp_result(evp_status _status);
-		evp_result(evp_status _status, const std::string& _msg);
-
-		bool operator!() const;
-		explicit operator bool() const;
-	};
-
 	class evp {
 	public:
 		// void f()
 		typedef std::function<void()> notify_start;
 
-		// void f(libevp::evp::evp_result)
-		typedef std::function<void(evp_result)> notify_finish;
+		// void f(libdvsku::dv_result)
+		typedef std::function<void(libdvsku::dv_result)> notify_finish;
 
 		// void f(float)
 		typedef std::function<void(float)> notify_update;
 
-		// void f(libevp::evp::evp_result)
-		typedef std::function<void(evp_result)> notify_error;
+		// void f(libdvsku::dv_result)
+		typedef std::function<void(libdvsku::dv_result)> notify_error;
+
+		typedef std::filesystem::path	FILE_PATH;
+		typedef std::filesystem::path	FOLDER_PATH;
 
 	public:
 
@@ -78,8 +64,8 @@ namespace libevp {
 		 *			m_code == evp_status::ok			packed successfully;
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		*/
-		static evp_result pack(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output,
-			bool encrypt = false, const std::string& key = "", FILE_FILTER_REF_C filter = FILE_FILTER_NONE);
+		static libdvsku::dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
+			const std::string& key = "", libdvsku::crypt::file_filter filter = libdvsku::crypt::file_filter::none);
 
 		/*
 		 *	Unpacks .evp archive contents into a folder
@@ -93,7 +79,7 @@ namespace libevp {
 		 *			m_code == evp_status::ok			unpacked successfully;
 		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 		*/
-		static evp_result unpack(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output,
+		static libdvsku::dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
 			bool decrypt = false, const std::string& key = "");
 
 		/*
@@ -119,8 +105,8 @@ namespace libevp {
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		 *			m_code == evp_status::cancelled		packing cancelled by user
 		*/
-		static void pack_async(FOLDER_PATH_REF_C input, FILE_PATH_REF_C output,
-			bool encrypt = false, const std::string& key = "", FILE_FILTER_REF_C filter = FILE_FILTER_NONE,
+		static void pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false, 
+			const std::string& key = "", libdvsku::crypt::file_filter filter = libdvsku::crypt::file_filter::none,
 			const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
 
@@ -142,7 +128,7 @@ namespace libevp {
 		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 		 *			m_code == evp_status::cancelled		unpacking cancelled by user
 		*/
-		static void unpack_async(FILE_PATH_REF_C input, FOLDER_PATH_REF_C output,
+		static void unpack_async(const FILE_PATH& input, const FOLDER_PATH& output,
 			bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 			notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
@@ -152,7 +138,7 @@ namespace libevp {
 		 * 
 		 *	@param input -> file path
 		*/
-		static bool is_encrypted(FILE_PATH_REF_C input);
+		static bool is_encrypted(const FILE_PATH& input);
 	};
 }
 

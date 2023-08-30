@@ -1,0 +1,36 @@
+name: Build libevp for Windows
+
+on:
+    push:
+        branches: [ "main" ]
+    pull_request:
+        branches: [ "main" ]
+
+jobs:
+    build:
+        runs-on: windows-latest
+
+        steps:
+        - name: Checkout repo
+          uses: actions/checkout@v3
+
+        - name: Set up VS toolchain
+          uses: ilammy/msvc-dev-cmd@v1
+          with:
+                arch: x86
+
+        - name: Setup Ninja
+          uses: ashutoshvarma/setup-ninja@master
+          with:
+                version: 1.10.0
+
+        - name: Build
+          uses: ashutoshvarma/action-cmake-build@master
+          with:
+                build-dir: ${{ runner.workspace }}/build
+                configure-options: -G Ninja -DCMAKE_CXX_COMPILER=cl -DCMAKE_C_COMPILER=cl
+                build-type: Release
+
+        - name: Test
+          working-directory: ${{ runner.workspace }}/build
+          run: ctest -C ${{ matrix.build-type }}

@@ -1,4 +1,4 @@
-#include "src/libevp.h"
+#include "libevp.h"
 #include "test/utilities_assert.hpp"
 
 #include <fstream>

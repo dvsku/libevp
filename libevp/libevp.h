@@ -1,14 +1,27 @@
 #pragma once
 
-#ifndef LIBEVP_H
-#define LIBEVP_H
-
 #include <vector>
 #include <string>
 #include <functional>
 #include <filesystem>
 
-#include "libdvsku_crypt/libdvsku_crypt.h"
+#include "lib/libdvsku_crypt/libdvsku_crypt.h"
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+	#if !defined(NDEBUG) 
+		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_debug")
+	#else 
+		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_release")
+	#endif
+#elif defined(__linux__) || defined(__unix__)
+	#if !defined(NDEBUG) 
+		#error Missing libdvsku_crypt lib
+	#else 
+		#error Missing libdvsku_crypt lib
+	#endif
+#else
+	#error Unsupported platform
+#endif
 
 // Bytes that describe v1 of an evp packer
 constexpr char EVP_V1_HEADER[60] {
@@ -141,5 +154,3 @@ namespace libevp {
 		static bool is_encrypted(const FILE_PATH& input);
 	};
 }
-
-#endif

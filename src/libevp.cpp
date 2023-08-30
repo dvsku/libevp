@@ -4,7 +4,7 @@
 #include <fstream>
 #include <thread>
 
-#include "lib/md5/md5.h"
+#include "lib/libdvsku_crypt/md5/md5.h"
 #include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
 using namespace libevp;

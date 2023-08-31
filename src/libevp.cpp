@@ -45,6 +45,24 @@ const std::vector<std::string> EXCLUDE_SERVER_EXTENSIONS {
 	""
 };
 
+// Bytes that describe evp v1
+constexpr char EVP_V1_HEADER[60]{
+	53,50,53,99,49,55,97,54,97,55,99,102,98,99,100,55,53,52,49,50,101,99,100,48,54,57,100,52,
+	98,55,50,99,51,56,57,0,16,0,0,0,78,79,82,77,65,76,95,80,65,67,75,95,84,89,80,69,100,0,0,0
+};
+
+// Padding
+constexpr char RESERVED_BYTES[16]{};
+
+// Offset where file data begins
+constexpr uint32_t DATA_START_OFFSET = 0x4C;
+
+// Offset where header ends
+constexpr uint32_t HEADER_END_OFFSET = 0x3C;
+
+// Offset between two file descriptions
+constexpr uint32_t OFFSET_BETWEEN_FILE_DESC = 0x24;
+
 struct file_desc {
 	std::string m_path;
 	std::vector<uint8_t> m_data;

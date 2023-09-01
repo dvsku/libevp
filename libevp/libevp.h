@@ -24,6 +24,10 @@
 #endif
 
 namespace libevp {
+		client_only,	// include only Talisman Online client files
+		server_only		// include only Talisman Online server files
+	};
+
 	class evp {
 	public:
 		// void f()
@@ -127,6 +131,8 @@ namespace libevp {
 			bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 			notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
+
+		static std::vector<FILE_PATH> get_file_list(const FILE_PATH& input, bool decrypt = false, const std::string& key = "");
 
 		/*
 		 *	Checks if the file is encrypted

@@ -204,7 +204,7 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 		input_file.m_data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
 		input_stream.close();
 
-		if (encrypt)
+		if (encrypt && filtering::should_be_encrypted(file))
 			crypt.encrypt_buffer(input_file.m_data);
 
 		// save content size

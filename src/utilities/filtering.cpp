@@ -24,14 +24,9 @@ const std::vector<std::string> SERVER_FILES {
 	"server_engine.ini", "server_game.ini", "server_user.ini"
 };
 
-// Extensions to exclude when filtering for client_only
-const std::vector<std::string> EXCLUDE_CLIENT_EXTENSIONS {
+// Extensions to ignore when encrypting
+const std::vector<std::string> IGNORE_ENCRYPT_EXTENSIONS {
 	".wav", ".ogg", ".db", ".ifl"
-};
-
-// Extensions to exclude when filtering for server_only
-const std::vector<std::string> EXCLUDE_SERVER_EXTENSIONS {
-	""
 };
 
 bool path_contains_dir(const std::filesystem::path& path, const std::vector<std::string>& dirs);
@@ -62,6 +57,10 @@ std::vector<std::filesystem::path> filtering::get_filtered_paths(const std::file
 	}
 
 	return results;
+}
+
+bool filtering::should_be_encrypted(const std::filesystem::path& file) {
+	return !path_contains_extension(file, IGNORE_ENCRYPT_EXTENSIONS);
 }
 
 bool path_contains_dir(const std::filesystem::path& path, const std::vector<std::string>& dirs) {

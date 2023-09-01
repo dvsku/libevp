@@ -6,12 +6,27 @@
 
 #include "utilities/filtering.hpp"
 #include "versions/formats.hpp"
-#include "lib/libdvsku_crypt/md5/md5.h"
-#include "lib/libdvsku_crypt/libdvsku_crypt.h"
+#include "lib/libdvsku_crypt/libdvsku_crypt.hpp"
 
 using namespace libevp;
 using namespace libdvsku;
 using namespace libdvsku::crypt;
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+	#if !defined(NDEBUG) 
+		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_debug")
+	#else 
+		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_release")
+	#endif
+#elif defined(__linux__) || defined(__unix__)
+	#if !defined(NDEBUG) 
+		#error Missing libdvsku_crypt lib
+	#else 
+		#error Missing libdvsku_crypt lib
+	#endif
+#else
+	#error Unsupported platform
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
@@ -20,7 +35,7 @@ using namespace libdvsku::crypt;
 struct file_desc {
 	std::string m_path;
 	std::vector<uint8_t> m_data;
-	unsigned char m_data_hash[16];
+	std::array<uint8_t, 16> m_data_hash;
 	size_t m_data_size;
 	size_t m_path_size;
 	size_t m_data_start_offset;
@@ -154,6 +169,10 @@ void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool d
 	t.detach();
 }
 
+std::vector<evp::FILE_PATH> evp::get_file_list(const FILE_PATH& input, bool decrypt, const std::string& key) {
+	return std::vector<FILE_PATH>();
+}
+
 bool evp::is_encrypted(const FILE_PATH& input) {
 	return false;
 }
@@ -211,9 +230,7 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 		input_file.m_data_size = (unsigned int)input_file.m_data.size();
 
 		// hash file content
-		MD5 md5_digest;
-		md5_digest.add(input_file.m_data.data(), input_file.m_data_size);
-		md5_digest.getHash(input_file.m_data_hash);
+		input_file.m_data_hash = crypt.compute_md5(input_file.m_data.data(), input_file.m_data_size);
 
 		fout.write((char*)input_file.m_data.data(), input_file.m_data_size);
 
@@ -398,7 +415,7 @@ void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>&
 	buffer.insert(buffer.end(), (unsigned char*)&(file_desc.m_data_size), (unsigned char*)&(file_desc.m_data_size) + sizeof(size_t));
 	buffer.insert(buffer.end(), 1, 1);
 	buffer.insert(buffer.end(), 11, 0);
-	buffer.insert(buffer.end(), file_desc.m_data_hash, file_desc.m_data_hash + sizeof(file_desc.m_data_hash));
+	buffer.insert(buffer.end(), file_desc.m_data_hash.data(), file_desc.m_data_hash.data() + file_desc.m_data_hash.size());
 }
 
 dv_result is_evp_header_valid(const evp::FILE_PATH& input) {

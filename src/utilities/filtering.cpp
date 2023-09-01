@@ -1,8 +1,6 @@
-#include "filtering.hpp"
+#include "utilities/filtering.hpp"
 
 using namespace libevp;
-using namespace libdvsku;
-using namespace libdvsku::crypt;
 
 // Folders to include when filtering for client_only
 const std::vector<std::string> CLIENT_FOLDERS {

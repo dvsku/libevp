@@ -5,29 +5,27 @@
 #include <functional>
 #include <filesystem>
 
-#include "lib/libdvsku_crypt/libdvsku_crypt.h"
+#include "utilities/filtering.hpp"
+#include "lib/libdvsku_crypt/utilities/dv_result.hpp"
+//#include "lib/libdvsku_crypt/libdvsku_crypt.hpp"
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-	#if !defined(NDEBUG) 
-		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_debug")
-	#else 
-		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_release")
-	#endif
-#elif defined(__linux__) || defined(__unix__)
-	#if !defined(NDEBUG) 
-		#error Missing libdvsku_crypt lib
-	#else 
-		#error Missing libdvsku_crypt lib
-	#endif
-#else
-	#error Unsupported platform
-#endif
+//#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+//	#if !defined(NDEBUG) 
+//		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_debug")
+//	#else 
+//		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_release")
+//	#endif
+//#elif defined(__linux__) || defined(__unix__)
+//	#if !defined(NDEBUG) 
+//		#error Missing libdvsku_crypt lib
+//	#else 
+//		#error Missing libdvsku_crypt lib
+//	#endif
+//#else
+//	#error Unsupported platform
+//#endif
 
 namespace libevp {
-		client_only,	// include only Talisman Online client files
-		server_only		// include only Talisman Online server files
-	};
-
 	class evp {
 	public:
 		// void f()
@@ -64,7 +62,7 @@ namespace libevp {
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		*/
 		static libdvsku::dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
-			const std::string& key = "", libdvsku::crypt::file_filter filter = libdvsku::crypt::file_filter::none);
+			const std::string& key = "", file_filter filter = file_filter::none);
 
 		/*
 		 *	Unpacks .evp archive contents into a folder
@@ -105,7 +103,7 @@ namespace libevp {
 		 *			m_code == evp_status::cancelled		packing cancelled by user
 		*/
 		static void pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false, 
-			const std::string& key = "", libdvsku::crypt::file_filter filter = libdvsku::crypt::file_filter::none,
+			const std::string& key = "", file_filter filter = file_filter::none,
 			const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
 

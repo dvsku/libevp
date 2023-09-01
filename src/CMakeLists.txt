@@ -3,11 +3,13 @@
 INCLUDE_DIRECTORIES("${CMAKE_SOURCE_DIR}/libevp")
 
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	ADD_LIBRARY(evp STATIC 
+	ADD_LIBRARY(evp STATIC
+		"utilities/filtering.cpp"
 		"libevp.cpp"
 	)
 ELSEIF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	ADD_LIBRARY(libevp STATIC
+		"utilities/filtering.cpp"
 		"libevp.cpp"
 	)
 

@@ -4,6 +4,8 @@
 #include <fstream>
 #include <thread>
 
+#include "utilities/filtering.hpp"
+#include "versions/formats.hpp"
 #include "lib/libdvsku_crypt/md5/md5.h"
 #include "lib/libdvsku_crypt/libdvsku_crypt.h"
 
@@ -14,54 +16,6 @@ using namespace libdvsku::crypt;
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
 ///////////////////////////////////////////////////////////////////////////////
-
-// Folders to include when packing evp
-const std::vector<std::string> CLIENT_FOLDERS {
-	"local", "maps", "model", "model2", "script", "ui", "audio", "music", "scene"
-};
-
-// Files to include
-const std::vector<std::string> CLIENT_FILES {
-	"client_engine.ini", "client_game.ini"
-};
-
-// Extensions to exclude
-const std::vector<std::string> EXCLUDE_CLIENT_EXTENSIONS {
-	".wav", ".ogg", ".db", ".ifl"
-};
-
-// Folders to include
-const std::vector<std::string> SERVER_FOLDERS {
-	"local", "maps", "script"
-};
-
-// Files to include
-const std::vector<std::string> SERVER_FILES {
-	"server_engine.ini", "server_game.ini", "server_user.ini"
-};
-
-// Extensions to exclude
-const std::vector<std::string> EXCLUDE_SERVER_EXTENSIONS {
-	""
-};
-
-// Bytes that describe evp v1
-constexpr char EVP_V1_HEADER[60]{
-	53,50,53,99,49,55,97,54,97,55,99,102,98,99,100,55,53,52,49,50,101,99,100,48,54,57,100,52,
-	98,55,50,99,51,56,57,0,16,0,0,0,78,79,82,77,65,76,95,80,65,67,75,95,84,89,80,69,100,0,0,0
-};
-
-// Padding
-constexpr char RESERVED_BYTES[16]{};
-
-// Offset where file data begins
-constexpr uint32_t DATA_START_OFFSET = 0x4C;
-
-// Offset where header ends
-constexpr uint32_t HEADER_END_OFFSET = 0x3C;
-
-// Offset between two file descriptions
-constexpr uint32_t OFFSET_BETWEEN_FILE_DESC = 0x24;
 
 struct file_desc {
 	std::string m_path;
@@ -75,15 +29,6 @@ struct file_desc {
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
-
-std::vector<evp::FILE_PATH> _get_filtered_paths(const evp::FILE_PATH& dir,
-	file_filter filter = file_filter::none);
-
-bool _compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders);
-
-bool _compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files);
-
-bool _compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions);
 
 dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
 	file_filter filter = file_filter::none, const bool* cancel = nullptr, evp::notify_start started = nullptr,
@@ -217,80 +162,17 @@ bool evp::is_encrypted(const FILE_PATH& input) {
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-std::vector<evp::FILE_PATH> _get_filtered_paths(const evp::FILE_PATH& dir, file_filter filter) {
-	std::vector<evp::FILE_PATH> results;
-
-	for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(dir)) {
-		if (std::filesystem::is_regular_file(dir_entry.path())) {
-			switch (filter) {
-				case file_filter::client_only:
-				{
-					if (!_compare_folders(dir_entry.path(), CLIENT_FOLDERS)) {
-						if (_compare_files(dir_entry.path(), CLIENT_FILES))
-							results.push_back(dir_entry.path());
-					}
-					else {
-						results.push_back(dir_entry.path());
-					}
-
-					break;
-				}
-				case file_filter::server_only:
-				{
-					if (!_compare_folders(dir_entry.path(), SERVER_FOLDERS)) {
-						if (_compare_files(dir_entry.path(), SERVER_FILES))
-							results.push_back(dir_entry.path());
-					}
-					else {
-						results.push_back(dir_entry.path());
-					}
-
-					break;
-				}
-				default: results.push_back(dir_entry.path()); break;
-			}
-		}
-	}
-
-	return results;
-}
-
-bool _compare_folders(const evp::FILE_PATH& path, const std::vector<std::string>& folders) {
-	const std::string dir = path.parent_path().generic_string();
-	for (const std::string& folder : folders) {
-		if (dir.find(folder) != std::string::npos)
-			return true;
-	}
-	return false;
-}
-
-bool _compare_files(const evp::FILE_PATH& path, const std::vector<std::string>& files) {
-	for (const std::string& file : files) {
-		if (path.filename().generic_string() == file)
-			return true;
-	}
-	return false;
-}
-
-bool _compare_extensions(const evp::FILE_PATH& path, const std::vector<std::string>& extensions) {
-	for (const std::string& extension : extensions) {
-		if (path.extension().generic_string() == extension)
-			return true;
-	}
-	return false;
-}
-
 dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt, const std::string& key, 
 	file_filter filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, 
 	evp::notify_error error) 
 {
 	std::vector<file_desc> input_files;
-	size_t curr_data_offset = DATA_START_OFFSET;
+	size_t curr_data_offset = v1::DATA_START_OFFSET;
 	size_t footer_size = 0;
 
 	libdvsku_crypt crypt(key.c_str());
 
-	auto files = _get_filtered_paths(input, filter);
+	auto files = filtering::get_filtered_paths(input, filter);
 
 	float prog_change_x = 90.0f / files.size();
 	float prog_change_y = 10.0f / files.size();
@@ -301,8 +183,8 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 	std::ofstream fout;
 	fout.open(output, std::ios::binary);
 
-	fout.write(EVP_V1_HEADER, sizeof(EVP_V1_HEADER));
-	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
+	fout.write(v1::format_desc::HEADER,	sizeof(v1::format_desc::HEADER));
+	fout.write(v1::format_desc::RESERVED, sizeof(v1::format_desc::RESERVED));
 
 	for (evp::FILE_PATH file : files) {
 		if (cancel && *cancel) {
@@ -350,7 +232,7 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 			update(prog_change_x);
 	}
 
-	fout.write(RESERVED_BYTES, sizeof(RESERVED_BYTES));
+	fout.write(v1::format_desc::RESERVED, sizeof(v1::format_desc::RESERVED));
 
 	for (file_desc input_file : input_files) {
 		if (cancel && *cancel) {
@@ -388,7 +270,7 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 
 	uint64_t num_files = input_files.size();
 
-	fout.seekp(HEADER_END_OFFSET, std::ios_base::beg);
+	fout.seekp(v1::HEADER_END_OFFSET, std::ios_base::beg);
 	fout.write((char*)&curr_data_offset, sizeof(size_t));
 	fout.write((char*)&footer_size, sizeof(size_t));
 	fout.write((char*)&num_files, sizeof(uint64_t));
@@ -419,7 +301,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 		return result;
 	}
 
-	fin.seekg(HEADER_END_OFFSET, std::ios_base::beg);
+	fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
 
 	fin.read((char*)&data_block_end, sizeof(size_t));
 	fin.read((char*)&names_block_size, sizeof(size_t));
@@ -428,7 +310,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 	float prog_change = 100.0f / file_count;
 
 	size_t curr_name_block_offset = data_block_end + 16;
-	size_t curr_data_block_offset = DATA_START_OFFSET;
+	size_t curr_data_block_offset = v1::DATA_START_OFFSET;
 
 	if (started)
 		started();
@@ -471,7 +353,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 		if (decrypt)
 			crypt.decrypt_buffer(output_file.m_data);
 
-		curr_name_block_offset += OFFSET_BETWEEN_FILE_DESC;
+		curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;
 
 		evp::FILE_PATH dir_path(output);
@@ -526,11 +408,11 @@ dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 		return dv_result(dv_status::error, "Could not open input file.");
 
 	char header_buffer[60];
-	fin.read(header_buffer, HEADER_END_OFFSET);
+	fin.read(header_buffer, v1::HEADER_END_OFFSET);
 	fin.close();
 
 	for (size_t i = 0; i < strlen(header_buffer); i++) {
-		if (EVP_V1_HEADER[i] != header_buffer[i])
+		if (v1::format_desc::HEADER[i] != header_buffer[i])
 			return dv_result(dv_status::error, "Input not an .evp file or .evp version unsupported.");
 	}
 

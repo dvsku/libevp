@@ -169,8 +169,124 @@ void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool d
 	t.detach();
 }
 
-std::vector<evp::FILE_PATH> evp::get_file_list(const FILE_PATH& input, bool decrypt, const std::string& key) {
-	return std::vector<FILE_PATH>();
+std::vector<evp::FILE_PATH> evp::get_evp_file_list(const FILE_PATH& evp) {
+	std::vector<FILE_PATH> results;
+
+	std::ifstream fin;
+	fin.open(evp, std::ios::binary);
+
+	if (!fin.is_open() || fin.bad())
+		return results;
+
+	size_t data_block_end	= 0;
+	size_t names_block_size = 0;
+	uint64_t file_count		= 0;
+
+	fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
+
+	fin.read((char*)&data_block_end, sizeof(size_t));
+	fin.read((char*)&names_block_size, sizeof(size_t));
+	fin.read((char*)&file_count, sizeof(uint64_t));
+
+	size_t curr_name_block_offset = data_block_end + 16;
+	size_t curr_data_block_offset = v1::DATA_START_OFFSET;
+
+	for (uint64_t i = 0; i < file_count; i++) {
+		size_t path_size = 0;
+		std::string path = "";
+
+		// go to curr name block pos
+		fin.seekg(curr_name_block_offset, std::ios_base::beg);
+
+		// get path size
+		fin.read((char*)&path_size, sizeof(size_t));
+		path.resize(path_size);
+
+		curr_name_block_offset += sizeof(size_t);
+
+		// get file path
+		fin.read(&path[0], path_size);
+		curr_name_block_offset += path_size + sizeof(size_t);
+
+		std::replace(path.begin(), path.end(), '\\', '/');
+
+		results.push_back(evp::FILE_PATH(path));
+
+		curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
+	}
+
+	fin.close();
+
+	return results;
+}
+
+dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer, bool decrypt, const std::string& key) {
+	std::ifstream fin;
+	fin.open(evp, std::ios::binary);
+	
+	if (!fin.is_open() || fin.bad())
+		return dv_result(dv_status::error, "Could not open evp file");
+
+	size_t data_block_end	= 0;
+	size_t names_block_size = 0;
+	uint64_t file_count		= 0;
+
+	libdvsku_crypt crypt(key.c_str());
+
+	fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
+
+	fin.read((char*)&data_block_end, sizeof(size_t));
+	fin.read((char*)&names_block_size, sizeof(size_t));
+	fin.read((char*)&file_count, sizeof(uint64_t));
+
+	size_t curr_name_block_offset = data_block_end + 16;
+
+	bool found = false;
+	for (uint64_t i = 0; i < file_count; i++) {
+		file_desc current_file;
+
+		// go to curr name block pos
+		fin.seekg(curr_name_block_offset, std::ios_base::beg);
+
+		// get path size
+		fin.read((char*)&current_file.m_path_size, sizeof(size_t));
+		current_file.m_path.resize(current_file.m_path_size);
+
+		curr_name_block_offset += sizeof(size_t);
+
+		// get file path
+		fin.read(&current_file.m_path[0], current_file.m_path_size);
+		curr_name_block_offset += current_file.m_path_size;
+
+		// get file data start offset
+		fin.read((char*)&current_file.m_data_start_offset, sizeof(size_t));
+		curr_name_block_offset += sizeof(size_t);
+
+		std::replace(current_file.m_path.begin(), current_file.m_path.end(), '\\', '/');
+
+		fin.seekg(sizeof(size_t), std::ios_base::cur);
+
+		// get data size
+		fin.read((char*)&current_file.m_data_size, sizeof(size_t));
+		
+		if (current_file.m_path == file.generic_string()) {
+			buffer.resize(current_file.m_data_size);
+
+			// go to curr data block pos
+			fin.seekg(current_file.m_data_start_offset, std::ios_base::beg);
+			fin.read((char*)buffer.data(), current_file.m_data_size);
+
+			if (decrypt)
+				crypt.decrypt_buffer(buffer);
+
+			found = true;
+			break;
+		}
+
+		curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
+	}
+
+	return found ? dv_result() : dv_result(dv_status::error, "File not found.");
 }
 
 bool evp::is_encrypted(const FILE_PATH& input) {

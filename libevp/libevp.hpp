@@ -27,6 +27,7 @@ namespace libevp {
 
 		typedef std::filesystem::path	FILE_PATH;
 		typedef std::filesystem::path	FOLDER_PATH;
+		typedef std::vector<uint8_t>	BUFFER;
 
 	public:
 
@@ -115,7 +116,30 @@ namespace libevp {
 			notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
 
-		static LIBEVP_API std::vector<FILE_PATH> get_file_list(const FILE_PATH& input, bool decrypt = false, const std::string& key = "");
+		/*
+		 *	Get list of files packed inside .evp archive
+		 *
+		 *	@param evp -> file path to .evp archive
+		 *
+		 *	@returns std::vector<FILE_PATH> -> list of files
+		*/
+		static LIBEVP_API std::vector<FILE_PATH> get_evp_file_list(const FILE_PATH& evp);
+
+		/*
+		 *	Unpack a single file from .evp archive into a buffer
+		 *
+		 *	@param evp		-> file path to .evp archive
+		 *	@param file		-> file path to unpack
+		 *  @param buffer	-> buffer to unpack into
+		 *	@param decrypt	-> if true tries to decrypt file with the key provided (auto detects if file is encrypted)
+		 *	@param key		-> decryption key (ignored if decrypt is false)
+		 *
+		 *	@returns evp_result
+		 *			status == dv_status::ok			unpacked successfully;
+		 *			status == dv_status::error		an error occurred during unpacking, msg contains details;
+		*/
+		static LIBEVP_API libdvsku::dv_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer,
+			bool decrypt = false, const std::string& key = "");
 
 		/*
 		 *	Checks if the file is encrypted

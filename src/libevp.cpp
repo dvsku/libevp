@@ -14,9 +14,9 @@ using namespace libdvsku::crypt;
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 	#if !defined(NDEBUG) 
-		#pragma comment(lib, "libdvsku_crypt/libdvsku_crypt_debug")
+		#pragma comment(lib, "libdvsku_crypt/libdvsku_cryptd")
 	#else 
-		#pragma comment(lib, "libdvsku_crypt/libdvsku_crypt_release")
+		#pragma comment(lib, "libdvsku_crypt/libdvsku_crypt")
 	#endif
 #elif defined(__linux__) || defined(__unix__)
 	#if !defined(NDEBUG) 

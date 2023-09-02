@@ -33,39 +33,39 @@ using namespace libdvsku::crypt;
 ///////////////////////////////////////////////////////////////////////////////
 
 struct file_desc {
-	std::string m_path;
-	std::vector<uint8_t> m_data;
-	std::array<uint8_t, 16> m_data_hash;
-	size_t m_data_size;
-	size_t m_path_size;
-	size_t m_data_start_offset;
+	std::string m_path{};
+	std::vector<uint8_t> m_data{};
+	std::array<uint8_t, 16> m_data_hash{};
+	size_t m_data_size = 0;
+	size_t m_path_size = 0;
+	size_t m_data_start_offset = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-libevp::dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
+dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
 	file_filter filter = file_filter::none, const bool* cancel = nullptr, evp::notify_start started = nullptr,
 	evp::notify_update update = nullptr, evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt = false, const std::string& key = "",
+dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt = false, const std::string& key = "",
 	const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
 	evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
 void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 
-libevp::dv_result is_evp_header_valid(const evp::FILE_PATH& input);
+dv_result is_evp_header_valid(const evp::FILE_PATH& input);
 
-libevp::dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
+dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
 
-libevp::dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
+dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-libevp::dv_result evp::pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt,
+dv_result evp::pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt,
 	const std::string& key, file_filter filter)
 {
 	auto result = are_pack_paths_valid(input, output);
@@ -83,7 +83,7 @@ libevp::dv_result evp::pack(const FOLDER_PATH& input, const FILE_PATH& output, b
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-libevp::dv_result evp::unpack(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
+dv_result evp::unpack(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
 	const std::string& key)
 {
 	auto result = are_unpack_paths_valid(input, output);
@@ -181,7 +181,7 @@ bool evp::is_encrypted(const FILE_PATH& input) {
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-libevp::dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt, const std::string& key,
+dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt, const std::string& key,
 	file_filter filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, 
 	evp::notify_error error) 
 {
@@ -208,9 +208,9 @@ libevp::dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH&
 	for (evp::FILE_PATH file : files) {
 		if (cancel && *cancel) {
 			if (finished)
-				finished(libevp::dv_result(libevp::dv_status::cancelled));
+				finished(dv_result(dv_status::cancelled));
 
-			return libevp::dv_result(libevp::dv_status::cancelled);
+			return dv_result(dv_status::cancelled);
 		}
 
 		file_desc input_file;
@@ -254,9 +254,9 @@ libevp::dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH&
 	for (file_desc input_file : input_files) {
 		if (cancel && *cancel) {
 			if (finished)
-				finished(libevp::dv_result(libevp::dv_status::cancelled));
+				finished(dv_result(dv_status::cancelled));
 
-			return libevp::dv_result(libevp::dv_status::cancelled);
+			return dv_result(dv_status::cancelled);
 		}
 
 		// get path relative to input path
@@ -293,14 +293,14 @@ libevp::dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH&
 	fout.write((char*)&num_files, sizeof(uint64_t));
 
 	if (finished)
-		finished(libevp::dv_result());
+		finished(dv_result());
 
 	fout.close();
 
-	return libevp::dv_result();
+	return dv_result();
 }
 
-libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt, const std::string& key,
+dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt, const std::string& key,
 	const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
 	size_t data_block_end = 0;
@@ -313,7 +313,7 @@ libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PAT
 	fin.open(input, std::ios::binary);
 
 	if (!fin.is_open()) {
-		libevp::dv_result result(libevp::dv_status::error, "Could not open input file");
+		dv_result result(dv_status::error, "Could not open input file");
 		if (error) error(result);
 		return result;
 	}
@@ -335,9 +335,9 @@ libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PAT
 	for (int i = 0; i < file_count; i++) {
 		if (cancel && *cancel) {
 			if (finished)
-				finished(libevp::dv_result(libevp::dv_status::cancelled));
+				finished(dv_result(dv_status::cancelled));
 
-			return libevp::dv_result(libevp::dv_status::cancelled);
+			return dv_result(dv_status::cancelled);
 		}
 
 		file_desc output_file;
@@ -389,7 +389,7 @@ libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PAT
 		fout.open(full_path, std::ios::binary);
 
 		if (!fout.is_open()) {
-			libevp::dv_result result(libevp::dv_status::error, "Could not write file : " + output_file.m_path);
+			dv_result result(dv_status::error, "Could not write file : " + output_file.m_path);
 			if (error) error(result);
 			return result;
 		}
@@ -402,9 +402,9 @@ libevp::dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PAT
 	}
 
 	if (finished)
-		finished(libevp::dv_result());
+		finished(dv_result());
 
-	return libevp::dv_result();
+	return dv_result();
 }
 
 void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {
@@ -418,11 +418,11 @@ void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>&
 	buffer.insert(buffer.end(), file_desc.m_data_hash.data(), file_desc.m_data_hash.data() + file_desc.m_data_hash.size());
 }
 
-libevp::dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
+dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 	std::ifstream fin(input, std::ios::binary);
 
 	if (!fin.is_open())
-		return libevp::dv_result(libevp::dv_status::error, "Could not open input file.");
+		return dv_result(dv_status::error, "Could not open input file.");
 
 	char header_buffer[60];
 	fin.read(header_buffer, v1::HEADER_END_OFFSET);
@@ -430,13 +430,13 @@ libevp::dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 
 	for (size_t i = 0; i < strlen(header_buffer); i++) {
 		if (v1::format_desc::HEADER[i] != header_buffer[i])
-			return libevp::dv_result(libevp::dv_status::error, "Input not an .evp file or .evp version unsupported.");
+			return dv_result(dv_status::error, "Input not an .evp file or .evp version unsupported.");
 	}
 
-	return libevp::dv_result();
+	return dv_result();
 }
 
-libevp::dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
+dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
 	evp::FILE_PATH input_path(input);
 	evp::FILE_PATH output_path(output);
 
@@ -448,31 +448,31 @@ libevp::dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp:
 			output_path = std::filesystem::absolute(output);
 
 		if (!std::filesystem::exists(input_path))
-			return libevp::dv_result(libevp::dv_status::error, "Input directory doesn't exist");
+			return dv_result(dv_status::error, "Input directory doesn't exist");
 
 		if (!std::filesystem::is_directory(input_path))
-			return libevp::dv_result(libevp::dv_status::error, "Input has to be a directory");
+			return dv_result(dv_status::error, "Input has to be a directory");
 
 		if (std::filesystem::is_directory(output_path))
-			return libevp::dv_result(libevp::dv_status::error, "Output cannot be a directory");
+			return dv_result(dv_status::error, "Output cannot be a directory");
 
 		if (!output_path.has_filename())
-			return libevp::dv_result(libevp::dv_status::error, "Output must be a file with .evp extension");
+			return dv_result(dv_status::error, "Output must be a file with .evp extension");
 
 		if (!output_path.has_extension() || output_path.extension() != ".evp")
-			return libevp::dv_result(libevp::dv_status::error, "Output extension must be .evp");
+			return dv_result(dv_status::error, "Output extension must be .evp");
 	}
 	catch (const std::exception& ex) {
-		return libevp::dv_result(libevp::dv_status::error, ex.what());
+		return dv_result(dv_status::error, ex.what());
 	}
 	catch (...) {
-		return libevp::dv_result(libevp::dv_status::error, "Unknow error occurred.");
+		return dv_result(dv_status::error, "Unknow error occurred.");
 	}
 
-	return libevp::dv_result();
+	return dv_result();
 }
 
-libevp::dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
+dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
 	evp::FILE_PATH input_path(input);
 	evp::FILE_PATH output_path(output);
 
@@ -484,26 +484,26 @@ libevp::dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp:
 			output_path = std::filesystem::absolute(output);
 
 		if (!std::filesystem::exists(output_path))
-			return libevp::dv_result(libevp::dv_status::error, "Output directory doesn't exist");
+			return dv_result(dv_status::error, "Output directory doesn't exist");
 
 		if (!std::filesystem::is_directory(output_path))
-			return libevp::dv_result(libevp::dv_status::error, "Output has to be a directory");
+			return dv_result(dv_status::error, "Output has to be a directory");
 
 		if (std::filesystem::is_directory(input_path))
-			return libevp::dv_result(libevp::dv_status::error, "Input cannot be a directory");
+			return dv_result(dv_status::error, "Input cannot be a directory");
 
 		if (!input_path.has_filename())
-			return libevp::dv_result(libevp::dv_status::error, "Input must be a file with .evp extension");
+			return dv_result(dv_status::error, "Input must be a file with .evp extension");
 
 		if (!input_path.has_extension() || input_path.extension() != ".evp")
-			return libevp::dv_result(libevp::dv_status::error, "Input extension must be .evp");
+			return dv_result(dv_status::error, "Input extension must be .evp");
 	}
 	catch (const std::exception& ex) {
-		return libevp::dv_result(libevp::dv_status::error, ex.what());
+		return dv_result(dv_status::error, ex.what());
 	}
 	catch (...) {
-		return libevp::dv_result(libevp::dv_status::error, "Unknow error occurred.");
+		return dv_result(dv_status::error, "Unknow error occurred.");
 	}
 
-	return libevp::dv_result();
+	return dv_result();
 }

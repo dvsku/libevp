@@ -7,23 +7,6 @@
 
 #include "utilities/filtering.hpp"
 #include "utilities/dv_result.hpp"
-//#include "lib/libdvsku_crypt/libdvsku_crypt.hpp"
-
-//#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-//	#if !defined(NDEBUG) 
-//		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_debug")
-//	#else 
-//		#pragma comment(lib, "lib/libdvsku_crypt/libdvsku_crypt_release")
-//	#endif
-//#elif defined(__linux__) || defined(__unix__)
-//	#if !defined(NDEBUG) 
-//		#error Missing libdvsku_crypt lib
-//	#else 
-//		#error Missing libdvsku_crypt lib
-//	#endif
-//#else
-//	#error Unsupported platform
-//#endif
 
 #define LIBEVP_API __declspec(dllexport)
 
@@ -34,13 +17,13 @@ namespace libevp {
 		typedef std::function<void()> notify_start;
 
 		// void f(dv_result)
-		typedef std::function<void(dv_result)> notify_finish;
+		typedef std::function<void(libdvsku::dv_result)> notify_finish;
 
 		// void f(float)
 		typedef std::function<void(float)> notify_update;
 
 		// void f(dv_result)
-		typedef std::function<void(dv_result)> notify_error;
+		typedef std::function<void(libdvsku::dv_result)> notify_error;
 
 		typedef std::filesystem::path	FILE_PATH;
 		typedef std::filesystem::path	FOLDER_PATH;
@@ -63,7 +46,7 @@ namespace libevp {
 		 *			m_code == evp_status::ok			packed successfully;
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		*/
-		static LIBEVP_API dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
+		static LIBEVP_API libdvsku::dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
 			const std::string& key = "", file_filter filter = file_filter::none);
 
 		/*
@@ -78,7 +61,7 @@ namespace libevp {
 		 *			m_code == evp_status::ok			unpacked successfully;
 		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 		*/
-		static LIBEVP_API dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
+		static LIBEVP_API libdvsku::dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
 			bool decrypt = false, const std::string& key = "");
 
 		/*

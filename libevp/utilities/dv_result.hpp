@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace libevp {
+namespace libdvsku {
 	enum class dv_status : unsigned char {
 		ok			= 0x0,
 		error		= 0x1,

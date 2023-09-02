@@ -65,51 +65,51 @@ dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_
 // PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result evp::pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt,
+dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt,
 	const std::string& key, file_filter filter)
 {
-	auto result = are_pack_paths_valid(input, output);
+	auto result = are_pack_paths_valid(input_dir, evp);
 	if (!result) return result;
 
-	FILE_PATH input_path(input);
-	FILE_PATH output_path(output);
+	FILE_PATH input_path(input_dir);
+	FILE_PATH output_path(evp);
 
 	if (!input_path.is_absolute())
-		input_path = std::filesystem::absolute(input);
+		input_path = std::filesystem::absolute(input_dir);
 
 	if (!output_path.is_absolute())
-		output_path = std::filesystem::absolute(output);
+		output_path = std::filesystem::absolute(evp);
 
 	return pack_impl(input_path, output_path, encrypt, key, filter);
 }
 
-dv_result evp::unpack(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
+dv_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool decrypt,
 	const std::string& key)
 {
-	auto result = are_unpack_paths_valid(input, output);
+	auto result = are_unpack_paths_valid(evp, output_dir);
 	if (!result) return result;
 	
-	result = is_evp_header_valid(input);
+	result = is_evp_header_valid(evp);
 	if (!result) return result;
 
-	FILE_PATH input_path(input);
-	FILE_PATH output_path(output);
+	FILE_PATH input_path(evp);
+	FILE_PATH output_path(output_dir);
 
 	if (!input_path.is_absolute())
-		input_path = std::filesystem::absolute(input);
+		input_path = std::filesystem::absolute(evp);
 
 	if (!output_path.is_absolute())
-		output_path = std::filesystem::absolute(output);
+		output_path = std::filesystem::absolute(output_dir);
 
 	return unpack_impl(input_path, output_path, decrypt, key);
 }
 
-void evp::pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt, 
+void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt,
 	const std::string& key, file_filter filter, const bool* cancel, notify_start started, notify_update update, 
 	notify_finish finished, notify_error error)
 {
-	std::thread t([input, output, cancel, encrypt, key, filter, started, update, finished, error] {
-		auto result = are_pack_paths_valid(input, output);
+	std::thread t([input_dir, evp, cancel, encrypt, key, filter, started, update, finished, error] {
+		auto result = are_pack_paths_valid(input_dir, evp);
 
 		if (!result) {
 			if (error) 
@@ -118,26 +118,26 @@ void evp::pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool enc
 			return;
 		}
 
-		FILE_PATH input_path(input);
-		FILE_PATH output_path(output);
+		FILE_PATH input_path(input_dir);
+		FILE_PATH output_path(evp);
 
 		if (!input_path.is_absolute())
-			input_path = std::filesystem::absolute(input);
+			input_path = std::filesystem::absolute(input_dir);
 
 		if (!output_path.is_absolute())
-			output_path = std::filesystem::absolute(output);
+			output_path = std::filesystem::absolute(evp);
 
 		pack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool decrypt,
+void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool decrypt,
 	const std::string& key, const bool* cancel, notify_start started, notify_update update,
 	notify_finish finished, notify_error error)
 {
-	std::thread t([input, output, cancel, decrypt, key, started, update, finished, error] {
-		auto result = are_unpack_paths_valid(input, output);
+	std::thread t([evp, output_dir, cancel, decrypt, key, started, update, finished, error] {
+		auto result = are_unpack_paths_valid(evp, output_dir);
 
 		if (!result) {
 			if (error) 
@@ -146,7 +146,7 @@ void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool d
 			return;
 		}
 
-		result = is_evp_header_valid(input);
+		result = is_evp_header_valid(evp);
 
 		if (result) {
 			if (error) 
@@ -155,14 +155,14 @@ void evp::unpack_async(const FILE_PATH& input, const FOLDER_PATH& output, bool d
 			return;
 		}
 
-		FILE_PATH input_path(input);
-		FILE_PATH output_path(output);
+		FILE_PATH input_path(evp);
+		FILE_PATH output_path(output_dir);
 
 		if (!input_path.is_absolute())
-			input_path = std::filesystem::absolute(input);
+			input_path = std::filesystem::absolute(evp);
 
 		if (!output_path.is_absolute())
-			output_path = std::filesystem::absolute(output);
+			output_path = std::filesystem::absolute(output_dir);
 
 		unpack_impl(input_path, output_path, decrypt, key, cancel, started, update, finished, error);
 	});

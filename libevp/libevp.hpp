@@ -16,13 +16,13 @@ namespace libevp {
 		// void f()
 		typedef std::function<void()> notify_start;
 
-		// void f(dv_result)
+		// void f(libdvsku::dv_result)
 		typedef std::function<void(libdvsku::dv_result)> notify_finish;
 
 		// void f(float)
 		typedef std::function<void(float)> notify_update;
 
-		// void f(dv_result)
+		// void f(libdvsku::dv_result)
 		typedef std::function<void(libdvsku::dv_result)> notify_error;
 
 		typedef std::filesystem::path	FILE_PATH;
@@ -44,10 +44,10 @@ namespace libevp {
 		 *			server: packs only Talisman Online server related files
 		 * 
 		 *	@returns evp_result	
-		 *			m_code == evp_status::ok			packed successfully;
-		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
+		 *			status == dv_status::ok				packed successfully;
+		 *			status == dv_status::error			an error occurred during packing, msg contains details;
 		*/
-		static LIBEVP_API libdvsku::dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
+		static LIBEVP_API libdvsku::dv_result pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt = false,
 			const std::string& key = "", file_filter filter = file_filter::none);
 
 		/*
@@ -56,13 +56,13 @@ namespace libevp {
 		 *	@param input	-> file path to .evp archive
 		 *	@param output	-> folder path where to save unpacked files
 		 *	@param decrypt	-> if true tries to decrypt files with the key provided (auto detects if each file is encrypted)
-		 *	@param key		-> encryption key (ignored if encrypt is false)
+		 *	@param key		-> decryption key (ignored if encrypt is false)
 		 *
 		 *	@returns evp_result
-		 *			m_code == evp_status::ok			unpacked successfully;
-		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
+		 *			status == dv_status::ok				unpacked successfully;
+		 *			status == dv_status::error			an error occurred during unpacking, msg contains details;
 		*/
-		static LIBEVP_API libdvsku::dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
+		static LIBEVP_API libdvsku::dv_result unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir,
 			bool decrypt = false, const std::string& key = "");
 
 		/*
@@ -84,11 +84,11 @@ namespace libevp {
 		 *  @param error	-> callback that's called when an error occurres
 		 *
 		 *	@returns evp_result
-		 *			m_code == evp_status::ok			packed successfully;
-		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
-		 *			m_code == evp_status::cancelled		packing cancelled by user
+		 *			status == dv_status::ok				packed successfully;
+		 *			status == dv_status::error			an error occurred during packing, msg contains details;
+		 *			status == dv_status::cancelled		packing cancelled by user
 		*/
-		static LIBEVP_API void pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
+		static LIBEVP_API void pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt = false,
 			const std::string& key = "", file_filter filter = file_filter::none,
 			const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
@@ -96,22 +96,22 @@ namespace libevp {
 		/*
 		 *	Asynchronously unpacks .evp archive contents into a folder
 		 *
-		 *	@param input	-> file path to .evp archive
-		 *	@param output	-> folder path where to save unpacked files
-		 *	@param decrypt	-> if true tries to decrypt files with the key provided (auto detects if each file is encrypted)
-		 *	@param key		-> encryption key (ignored if encrypt is false)
-		 *	@param cancel	-> pointer to bool that cancels packing if value is true
-		 *  @param started	-> callback that's called when packing starts
-		 *  @param update	-> callback that's called when there's progress update
-		 *  @param finished -> callback that's called when packing ends
-		 *  @param error	-> callback that's called when an error occurres
+		 *	@param evp			-> file path to .evp archive
+		 *	@param output_dir	-> folder path where to save unpacked files
+		 *	@param decrypt		-> if true tries to decrypt files with the key provided (auto detects if each file is encrypted)
+		 *	@param key			-> decryption key (ignored if encrypt is false)
+		 *	@param cancel		-> pointer to bool that cancels unpacking if value is true
+		 *  @param started		-> callback that's called when unpacking starts
+		 *  @param update		-> callback that's called when there's progress update
+		 *  @param finished		-> callback that's called when unpacking ends
+		 *  @param error		-> callback that's called when an error occurres
 		 * 
 		 *	@returns evp_result
-		 *			m_code == evp_status::ok			unpacked successfully;
-		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
-		 *			m_code == evp_status::cancelled		unpacking cancelled by user
+		 *			status == dv_status::ok				unpacked successfully;
+		 *			status == dv_status::error			an error occurred during unpacking, msg contains details;
+		 *			status == dv_status::cancelled		unpacking cancelled by user
 		*/
-		static LIBEVP_API void unpack_async(const FILE_PATH& input, const FOLDER_PATH& output,
+		static LIBEVP_API void unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir,
 			bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 			notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);

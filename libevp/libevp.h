@@ -6,7 +6,7 @@
 #include <filesystem>
 
 #include "utilities/filtering.hpp"
-#include "lib/libdvsku_crypt/utilities/dv_result.hpp"
+#include "utilities/dv_result.hpp"
 //#include "lib/libdvsku_crypt/libdvsku_crypt.hpp"
 
 //#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -25,20 +25,22 @@
 //	#error Unsupported platform
 //#endif
 
+#define LIBEVP_API __declspec(dllexport)
+
 namespace libevp {
 	class evp {
 	public:
 		// void f()
 		typedef std::function<void()> notify_start;
 
-		// void f(libdvsku::dv_result)
-		typedef std::function<void(libdvsku::dv_result)> notify_finish;
+		// void f(dv_result)
+		typedef std::function<void(dv_result)> notify_finish;
 
 		// void f(float)
 		typedef std::function<void(float)> notify_update;
 
-		// void f(libdvsku::dv_result)
-		typedef std::function<void(libdvsku::dv_result)> notify_error;
+		// void f(dv_result)
+		typedef std::function<void(dv_result)> notify_error;
 
 		typedef std::filesystem::path	FILE_PATH;
 		typedef std::filesystem::path	FOLDER_PATH;
@@ -61,7 +63,7 @@ namespace libevp {
 		 *			m_code == evp_status::ok			packed successfully;
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		*/
-		static libdvsku::dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
+		static LIBEVP_API dv_result pack(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
 			const std::string& key = "", file_filter filter = file_filter::none);
 
 		/*
@@ -76,7 +78,7 @@ namespace libevp {
 		 *			m_code == evp_status::ok			unpacked successfully;
 		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 		*/
-		static libdvsku::dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
+		static LIBEVP_API dv_result unpack(const FILE_PATH& input, const FOLDER_PATH& output,
 			bool decrypt = false, const std::string& key = "");
 
 		/*
@@ -102,7 +104,7 @@ namespace libevp {
 		 *			m_code == evp_status::error			an error occurred during packing, m_msg contains details;
 		 *			m_code == evp_status::cancelled		packing cancelled by user
 		*/
-		static void pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false, 
+		static LIBEVP_API void pack_async(const FOLDER_PATH& input, const FILE_PATH& output, bool encrypt = false,
 			const std::string& key = "", file_filter filter = file_filter::none,
 			const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
@@ -125,18 +127,18 @@ namespace libevp {
 		 *			m_code == evp_status::error			an error occurred during unpacking, m_msg contains details;
 		 *			m_code == evp_status::cancelled		unpacking cancelled by user
 		*/
-		static void unpack_async(const FILE_PATH& input, const FOLDER_PATH& output,
+		static LIBEVP_API void unpack_async(const FILE_PATH& input, const FOLDER_PATH& output,
 			bool decrypt = false, const std::string& key = "", const bool* cancel = nullptr, 
 			notify_start started = nullptr, notify_update update = nullptr,
 			notify_finish finished = nullptr, notify_error error = nullptr);
 
-		static std::vector<FILE_PATH> get_file_list(const FILE_PATH& input, bool decrypt = false, const std::string& key = "");
+		static LIBEVP_API std::vector<FILE_PATH> get_file_list(const FILE_PATH& input, bool decrypt = false, const std::string& key = "");
 
 		/*
 		 *	Checks if the file is encrypted
 		 * 
 		 *	@param input -> file path
 		*/
-		static bool is_encrypted(const FILE_PATH& input);
+		static LIBEVP_API bool is_encrypted(const FILE_PATH& input);
 	};
 }

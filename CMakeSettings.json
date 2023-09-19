@@ -27,7 +27,7 @@
       "generator": "Unix Makefiles",
       "configurationType": "Debug",
       "cmakeExecutable": "cmake",
-      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out", "bin" ],
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
@@ -39,6 +39,7 @@
       "remoteCopySources": true,
       "rsyncCommandArgs": "-t --delete --delete-excluded",
       "remoteCopyBuildOutput": true,
+      "buildRoot": "${projectDir}/bin/${name}",
       "remoteCopySourcesMethod": "rsync"
     },
     {
@@ -46,7 +47,7 @@
       "generator": "Unix Makefiles",
       "configurationType": "Release",
       "cmakeExecutable": "cmake",
-      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "out", "bin" ],
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
@@ -58,6 +59,7 @@
       "remoteCopySources": true,
       "rsyncCommandArgs": "-t --delete --delete-excluded",
       "remoteCopyBuildOutput": true,
+      "buildRoot": "${projectDir}/bin/${name}",
       "remoteCopySourcesMethod": "rsync"
     }
   ]

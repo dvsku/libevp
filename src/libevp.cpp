@@ -12,22 +12,6 @@ using namespace libevp;
 using namespace libdvsku;
 using namespace libdvsku::crypt;
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-	#if !defined(NDEBUG) 
-		#pragma comment(lib, "libdvsku_crypt/libdvsku_cryptd")
-	#else 
-		#pragma comment(lib, "libdvsku_crypt/libdvsku_crypt")
-	#endif
-#elif defined(__linux__) || defined(__unix__)
-	#if !defined(NDEBUG) 
-		#error Missing libdvsku_crypt lib
-	#else 
-		#error Missing libdvsku_crypt lib
-	#endif
-#else
-	#error Unsupported platform
-#endif
-
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
 ///////////////////////////////////////////////////////////////////////////////
@@ -189,7 +173,6 @@ std::vector<evp::FILE_PATH> evp::get_evp_file_list(const FILE_PATH& evp) {
 	fin.read((char*)&file_count, sizeof(uint64_t));
 
 	size_t curr_name_block_offset = data_block_end + 16;
-	size_t curr_data_block_offset = v1::DATA_START_OFFSET;
 
 	for (uint64_t i = 0; i < file_count; i++) {
 		size_t path_size = 0;
@@ -448,7 +431,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 	if (started)
 		started();
 
-	for (int i = 0; i < file_count; i++) {
+	for (uint64_t i = 0; i < file_count; i++) {
 		if (cancel && *cancel) {
 			if (finished)
 				finished(dv_result(dv_status::cancelled));
@@ -544,7 +527,7 @@ dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 	fin.read(header_buffer, v1::HEADER_END_OFFSET);
 	fin.close();
 
-	for (size_t i = 0; i < strlen(header_buffer); i++) {
+	for (size_t i = 0; i < 60; i++) {
 		if (v1::format_desc::HEADER[i] != header_buffer[i])
 			return dv_result(dv_status::error, "Input not an .evp file or .evp version unsupported.");
 	}

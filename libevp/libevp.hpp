@@ -8,7 +8,15 @@
 #include "utilities/filtering.hpp"
 #include "utilities/dv_result.hpp"
 
-#define LIBEVP_API __declspec(dllexport)
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+	#if defined LIBEVP_DLL
+		#define LIBEVP_API __declspec(dllexport)
+	#else
+		#define LIBEVP_API
+	#endif
+#else
+	#define LIBEVP_API 
+#endif
 
 namespace libevp {
 	class evp {

@@ -3,6 +3,7 @@
 #include <exception>
 #include <fstream>
 #include <thread>
+#include <iterator>
 
 #include "utilities/filtering.hpp"
 #include "versions/formats.hpp"
@@ -203,7 +204,9 @@ std::vector<evp::FILE_PATH> evp::get_evp_file_list(const FILE_PATH& evp) {
 	return results;
 }
 
-dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer, bool decrypt, const std::string& key) {
+dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer, 
+	bool decrypt, const std::string& key) 
+{
 	std::ifstream fin;
 	fin.open(evp, std::ios::binary);
 	
@@ -270,6 +273,20 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BU
 	}
 
 	return found ? dv_result() : dv_result(dv_status::error, "File not found.");
+}
+
+dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, 
+	std::stringstream& stream, bool decrypt, const std::string& key) 
+{
+	BUFFER buffer;
+	
+	auto result = get_file_from_evp(evp, file, buffer, decrypt, key);
+	if (!result)
+		return result;
+
+	std::move(buffer.begin(), buffer.end(), std::ostream_iterator<unsigned char>(stream));
+
+	return result;
 }
 
 bool evp::is_encrypted(const FILE_PATH& input) {

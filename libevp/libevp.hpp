@@ -150,6 +150,22 @@ namespace libevp {
 			bool decrypt = false, const std::string& key = "");
 
 		/*
+		 *	Unpack a single file from .evp archive into a stringstream
+		 *
+		 *	@param evp		-> file path to .evp archive
+		 *	@param file		-> file path to unpack
+		 *  @param stream	-> stream to unpack into
+		 *	@param decrypt	-> if true tries to decrypt file with the key provided (auto detects if file is encrypted)
+		 *	@param key		-> decryption key (ignored if decrypt is false)
+		 *
+		 *	@returns evp_result
+		 *			status == dv_status::ok			unpacked successfully;
+		 *			status == dv_status::error		an error occurred during unpacking, msg contains details;
+		*/
+		static LIBEVP_API libdvsku::dv_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream,
+			bool decrypt = false, const std::string& key = "");
+
+		/*
 		 *	Checks if the file is encrypted
 		 * 
 		 *	@param input -> file path

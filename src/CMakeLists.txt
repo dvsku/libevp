@@ -7,7 +7,7 @@ SET(BUILD_FILE_LIST "utilities/filtering.cpp" "libevp.cpp")
 
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	SET(CMAKE_CXX_STANDARD 20)
-	SET(CMAKE_CXX_FLAGS			"-m32 -ldl -pthread -Wall -D_GLIBCXX_USE_CXX11_ABI=0 -fpic")
+	SET(CMAKE_CXX_FLAGS			"-m32 -ldl -pthread -Wall -fpic")
 	SET(CMAKE_CXX_FLAGS_DEBUG	"-O0")
 	SET(CMAKE_CXX_FLAGS_RELEASE "-O2")
 

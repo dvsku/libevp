@@ -5,8 +5,6 @@
 #include <functional>
 #include <filesystem>
 
-#include "utilities/filtering.hpp"
-
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
     #if defined LIBEVP_DLL
         #define LIBEVP_API __declspec(dllexport)
@@ -18,6 +16,12 @@
 #endif
 
 namespace libevp {
+    enum class file_filter {
+        none,           // include all files
+        client_only,    // include only Talisman Online client files
+        server_only     // include only Talisman Online server files
+    };
+
     struct evp_result {
         enum class e_status : unsigned char {
             ok        = 0x0,

@@ -1,4 +1,5 @@
-#include "utilities/filtering.hpp"
+#include "filtering.hpp"
+#include "libevp.hpp"
 
 using namespace libevp;
 
@@ -22,14 +23,9 @@ const std::vector<std::string> SERVER_FILES {
     "server_engine.ini", "server_game.ini", "server_user.ini"
 };
 
-// Extensions to ignore when encrypting
-const std::vector<std::string> IGNORE_ENCRYPT_EXTENSIONS {
-    ".wav", ".ogg", ".db", ".ifl"
-};
-
-bool path_contains_dir(const std::filesystem::path& path, const std::vector<std::string>& dirs);
-bool path_contains_filename(const std::filesystem::path& path, const std::vector<std::string>& files);
-bool path_contains_extension(const std::filesystem::path& path, const std::vector<std::string>& extensions);
+static bool path_contains_dir(const std::filesystem::path& path, const std::vector<std::string>& dirs);
+static bool path_contains_filename(const std::filesystem::path& path, const std::vector<std::string>& files);
+static bool path_contains_extension(const std::filesystem::path& path, const std::vector<std::string>& extensions);
 
 std::vector<std::filesystem::path> filtering::get_filtered_paths(const std::filesystem::path& dir, file_filter filter) {
     std::vector<std::filesystem::path> results;
@@ -55,10 +51,6 @@ std::vector<std::filesystem::path> filtering::get_filtered_paths(const std::file
     }
 
     return results;
-}
-
-bool filtering::should_be_encrypted(const std::filesystem::path& file) {
-    return !path_contains_extension(file, IGNORE_ENCRYPT_EXTENSIONS);
 }
 
 bool path_contains_dir(const std::filesystem::path& path, const std::vector<std::string>& dirs) {

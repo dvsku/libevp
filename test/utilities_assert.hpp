@@ -5,7 +5,7 @@
 #define ASSERT(expression) {                                                                        \
     if(!(expression)) {                                                                             \
         printf("assertion '" #expression "' failed at line %d in file %s\n", __LINE__, __FILE__);   \
-        exit(EXIT_FAILURE);                                                                         \
+        return(EXIT_FAILURE);                                                                         \
     }                                                                                               \
 }
 
@@ -14,7 +14,7 @@
     try {                                                                                           \
         expression;                                                                                 \
         printf("assertion '" #expression "' failed at line %d in file %s\n", __LINE__, __FILE__);   \
-        exit(EXIT_FAILURE);                                                                         \
+        return(EXIT_FAILURE);                                                                         \
     }                                                                                               \
     catch (...) { }                                                                                 \
 }
@@ -26,7 +26,7 @@
     }                                                                                               \
     catch (...) {                                                                                   \
         printf("assertion '" #expression "' failed at line %d in file %s\n", __LINE__, __FILE__);   \
-        exit(EXIT_FAILURE);                                                                         \
+        return(EXIT_FAILURE);                                                                         \
     }                                                                                               \
 }
 
@@ -38,7 +38,7 @@
     }                                                                                               \
     catch (...) {                                                                                   \
         printf("assertion '" #expression "' failed at line %d in file %s\n", __LINE__, __FILE__);   \
-        exit(EXIT_FAILURE);                                                                         \
+        return(EXIT_FAILURE);                                                                         \
     }                                                                                               \
 }                                                                                                   \
     expression;                                                                                     

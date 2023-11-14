@@ -6,7 +6,6 @@
 #include <filesystem>
 
 #include "utilities/filtering.hpp"
-#include "utilities/dv_result.hpp"
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
     #if defined LIBEVP_DLL
@@ -19,22 +18,45 @@
 #endif
 
 namespace libevp {
+    struct evp_result {
+        enum class e_status : unsigned char {
+            ok        = 0x0,
+            cancelled = 0x1,
+            error     = 0x2
+        };
+
+        evp_result::e_status status = evp_result::e_status::ok;
+        std::string msg = "";
+
+        evp_result() {};
+
+        evp_result(evp_result::e_status _status)
+            : status(_status) {};
+
+        evp_result(evp_result::e_status _status, const std::string& _msg)
+            : status(_status), msg(_msg) {};
+
+        explicit operator bool() const {
+            return status == evp_result::e_status::ok;
+        }
+    };
+
     class evp {
     public:
         // void f()
         typedef std::function<void()> notify_start;
 
-        // void f(libdvsku::dv_result)
-        typedef std::function<void(libdvsku::dv_result)> notify_finish;
+        // void f(evp_result)
+        typedef std::function<void(evp_result)> notify_finish;
 
         // void f(float)
         typedef std::function<void(float)> notify_update;
 
-        // void f(libdvsku::dv_result)
-        typedef std::function<void(libdvsku::dv_result)> notify_error;
+        // void f(evp_result)
+        typedef std::function<void(evp_result)> notify_error;
 
-        typedef std::filesystem::path    FILE_PATH;
-        typedef std::filesystem::path    FOLDER_PATH;
+        typedef std::filesystem::path   FILE_PATH;
+        typedef std::filesystem::path   FOLDER_PATH;
         typedef std::vector<uint8_t>    BUFFER;
 
     public:
@@ -50,10 +72,10 @@ namespace libevp {
          *      server: packs only Talisman Online server related files
          * 
          *  @returns evp_result    
-         *      status == dv_status::ok         packed successfully;
-         *      status == dv_status::error      an error occurred during packing, msg contains details;
+         *      status == evp_result::e_status::ok         packed successfully;
+         *      status == evp_result::e_status::error      an error occurred during packing, msg contains details;
         */
-        static LIBEVP_API libdvsku::dv_result pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, 
+        static LIBEVP_API evp_result pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp,
             file_filter filter = file_filter::none);
 
         /*
@@ -63,10 +85,10 @@ namespace libevp {
          *  @param output   -> folder path where to save unpacked files
          *
          *  @returns evp_result
-         *      status == dv_status::ok         unpacked successfully;
-         *      status == dv_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result::e_status::ok         unpacked successfully;
+         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
         */
-        static LIBEVP_API libdvsku::dv_result unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir);
+        static LIBEVP_API evp_result unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir);
 
         /*
          *  Asynchronously packs files in folder into a .evp archive
@@ -85,9 +107,9 @@ namespace libevp {
          *  @param error    -> callback that's called when an error occurres
          *
          *  @returns evp_result
-         *      status == dv_status::ok             packed successfully;
-         *      status == dv_status::error          an error occurred during packing, msg contains details;
-         *      status == dv_status::cancelled      packing cancelled by user
+         *      status == evp_result::e_status::ok             packed successfully;
+         *      status == evp_result::e_status::error          an error occurred during packing, msg contains details;
+         *      status == evp_result::e_status::cancelled      packing cancelled by user
         */
         static LIBEVP_API void pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter = file_filter::none,
             const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
@@ -105,9 +127,9 @@ namespace libevp {
          *  @param error        -> callback that's called when an error occurres
          * 
          *  @returns evp_result
-         *      status == dv_status::ok             unpacked successfully;
-         *      status == dv_status::error          an error occurred during unpacking, msg contains details;
-         *      status == dv_status::cancelled      unpacking cancelled by user
+         *      status == evp_result::e_status::ok             unpacked successfully;
+         *      status == evp_result::e_status::error          an error occurred during unpacking, msg contains details;
+         *      status == evp_result::e_status::cancelled      unpacking cancelled by user
         */
         static LIBEVP_API void unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, const bool* cancel = nullptr, 
             notify_start started = nullptr, notify_update update = nullptr, 
@@ -130,10 +152,10 @@ namespace libevp {
          *  @param buffer   -> buffer to unpack into
          *
          *  @returns evp_result
-         *      status == dv_status::ok         unpacked successfully;
-         *      status == dv_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result::e_status::ok         unpacked successfully;
+         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
         */
-        static LIBEVP_API libdvsku::dv_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer);
+        static LIBEVP_API evp_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer);
 
         /*
          *  Unpack a single file from .evp archive into a stringstream
@@ -143,9 +165,9 @@ namespace libevp {
          *  @param stream   -> stream to unpack into
          *
          *  @returns evp_result
-         *      status == dv_status::ok         unpacked successfully;
-         *      status == dv_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result::e_status::ok         unpacked successfully;
+         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
         */
-        static LIBEVP_API libdvsku::dv_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream);
+        static LIBEVP_API evp_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream);
     };
 }

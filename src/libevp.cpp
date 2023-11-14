@@ -12,7 +12,6 @@
 #include "versions/formats.hpp"
 
 using namespace libevp;
-using namespace libdvsku;
 
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
@@ -31,11 +30,11 @@ struct file_desc {
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-static dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none, 
+static evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none,
     const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
     evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-static dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel = nullptr, 
+static evp_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel = nullptr,
     evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
     evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
@@ -43,17 +42,17 @@ static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
 
 static void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 
-static dv_result is_evp_header_valid(const evp::FILE_PATH& input);
+static evp_result is_evp_header_valid(const evp::FILE_PATH& input);
 
-static dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
+static evp_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
 
-static dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
+static evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter)
+evp_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter)
 {
     auto result = are_pack_paths_valid(input_dir, evp);
     if (!result) return result;
@@ -70,7 +69,7 @@ dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_fil
     return pack_impl(input_path, output_path, filter);
 }
 
-dv_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
+evp_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
 {
     auto result = are_unpack_paths_valid(evp, output_dir);
     if (!result) return result;
@@ -204,13 +203,13 @@ std::vector<evp::FILE_PATH> evp::get_evp_file_list(const FILE_PATH& evp) {
     return results;
 }
 
-dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer) 
+evp_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer)
 {
     std::ifstream fin;
     fin.open(evp, std::ios::binary);
     
     if (!fin.is_open() || fin.bad())
-        return dv_result(dv_status::error, "Could not open evp file");
+        return evp_result(evp_result::e_status::error, "Could not open evp file");
 
     size_t data_block_end    = 0;
     size_t names_block_size = 0;
@@ -266,10 +265,10 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BU
         curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
     }
 
-    return found ? dv_result() : dv_result(dv_status::error, "File not found.");
+    return found ? evp_result() : evp_result(evp_result::e_status::error, "File not found.");
 }
 
-dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream) 
+evp_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream)
 {
     BUFFER buffer;
     
@@ -286,7 +285,7 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, st
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
+evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
     const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
     std::vector<file_desc> input_files;
@@ -310,9 +309,9 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
     for (evp::FILE_PATH file : files) {
         if (cancel && *cancel) {
             if (finished)
-                finished(dv_result(dv_status::cancelled));
+                finished(evp_result(evp_result::e_status::cancelled));
 
-            return dv_result(dv_status::cancelled);
+            return evp_result(evp_result::e_status::cancelled);
         }
 
         file_desc input_file;
@@ -353,9 +352,9 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
     for (file_desc input_file : input_files) {
         if (cancel && *cancel) {
             if (finished)
-                finished(dv_result(dv_status::cancelled));
+                finished(evp_result(evp_result::e_status::cancelled));
 
-            return dv_result(dv_status::cancelled);
+            return evp_result(evp_result::e_status::cancelled);
         }
 
         // get path relative to input path
@@ -392,14 +391,14 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
     fout.write((char*)&num_files, sizeof(uint64_t));
 
     if (finished)
-        finished(dv_result());
+        finished(evp_result());
 
     fout.close();
 
-    return dv_result();
+    return evp_result();
 }
 
-dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel, 
+evp_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel, 
     evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
     size_t data_block_end = 0;
@@ -410,7 +409,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
     fin.open(input, std::ios::binary);
 
     if (!fin.is_open()) {
-        dv_result result(dv_status::error, "Could not open input file");
+        evp_result result(evp_result::e_status::error, "Could not open input file");
         if (error) error(result);
         return result;
     }
@@ -432,9 +431,9 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
     for (uint64_t i = 0; i < file_count; i++) {
         if (cancel && *cancel) {
             if (finished)
-                finished(dv_result(dv_status::cancelled));
+                finished(evp_result(evp_result::e_status::cancelled));
 
-            return dv_result(dv_status::cancelled);
+            return evp_result(evp_result::e_status::cancelled);
         }
 
         file_desc output_file;
@@ -483,7 +482,7 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
         fout.open(full_path, std::ios::binary);
 
         if (!fout.is_open()) {
-            dv_result result(dv_status::error, "Could not write file : " + output_file.m_path);
+            evp_result result(evp_result::e_status::error, "Could not write file : " + output_file.m_path);
             if (error) error(result);
             return result;
         }
@@ -496,9 +495,9 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
     }
 
     if (finished)
-        finished(dv_result());
+        finished(evp_result());
 
-    return dv_result();
+    return evp_result();
 }
 
 std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size) {
@@ -522,11 +521,11 @@ void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>&
     buffer.insert(buffer.end(), file_desc.m_data_hash.data(), file_desc.m_data_hash.data() + file_desc.m_data_hash.size());
 }
 
-dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
+evp_result is_evp_header_valid(const evp::FILE_PATH& input) {
     std::ifstream fin(input, std::ios::binary);
 
     if (!fin.is_open())
-        return dv_result(dv_status::error, "Could not open input file.");
+        return evp_result(evp_result::e_status::error, "Could not open input file.");
 
     char header_buffer[60];
     fin.read(header_buffer, v1::HEADER_END_OFFSET);
@@ -534,13 +533,13 @@ dv_result is_evp_header_valid(const evp::FILE_PATH& input) {
 
     for (size_t i = 0; i < 60; i++) {
         if (v1::format_desc::HEADER[i] != header_buffer[i])
-            return dv_result(dv_status::error, "Input not an .evp file or .evp version unsupported.");
+            return evp_result(evp_result::e_status::error, "Input not an .evp file or .evp version unsupported.");
     }
 
-    return dv_result();
+    return evp_result();
 }
 
-dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
+evp_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
     evp::FILE_PATH input_path(input);
     evp::FILE_PATH output_path(output);
 
@@ -552,31 +551,31 @@ dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PA
             output_path = std::filesystem::absolute(output);
 
         if (!std::filesystem::exists(input_path))
-            return dv_result(dv_status::error, "Input directory doesn't exist");
+            return evp_result(evp_result::e_status::error, "Input directory doesn't exist");
 
         if (!std::filesystem::is_directory(input_path))
-            return dv_result(dv_status::error, "Input has to be a directory");
+            return evp_result(evp_result::e_status::error, "Input has to be a directory");
 
         if (std::filesystem::is_directory(output_path))
-            return dv_result(dv_status::error, "Output cannot be a directory");
+            return evp_result(evp_result::e_status::error, "Output cannot be a directory");
 
         if (!output_path.has_filename())
-            return dv_result(dv_status::error, "Output must be a file with .evp extension");
+            return evp_result(evp_result::e_status::error, "Output must be a file with .evp extension");
 
         if (!output_path.has_extension() || output_path.extension() != ".evp")
-            return dv_result(dv_status::error, "Output extension must be .evp");
+            return evp_result(evp_result::e_status::error, "Output extension must be .evp");
     }
     catch (const std::exception& ex) {
-        return dv_result(dv_status::error, ex.what());
+        return evp_result(evp_result::e_status::error, ex.what());
     }
     catch (...) {
-        return dv_result(dv_status::error, "Unknow error occurred.");
+        return evp_result(evp_result::e_status::error, "Unknow error occurred.");
     }
 
-    return dv_result();
+    return evp_result();
 }
 
-dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
+evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
     evp::FILE_PATH input_path(input);
     evp::FILE_PATH output_path(output);
 
@@ -588,26 +587,26 @@ dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_
             output_path = std::filesystem::absolute(output);
 
         if (!std::filesystem::exists(output_path))
-            return dv_result(dv_status::error, "Output directory doesn't exist");
+            return evp_result(evp_result::e_status::error, "Output directory doesn't exist");
 
         if (!std::filesystem::is_directory(output_path))
-            return dv_result(dv_status::error, "Output has to be a directory");
+            return evp_result(evp_result::e_status::error, "Output has to be a directory");
 
         if (std::filesystem::is_directory(input_path))
-            return dv_result(dv_status::error, "Input cannot be a directory");
+            return evp_result(evp_result::e_status::error, "Input cannot be a directory");
 
         if (!input_path.has_filename())
-            return dv_result(dv_status::error, "Input must be a file with .evp extension");
+            return evp_result(evp_result::e_status::error, "Input must be a file with .evp extension");
 
         if (!input_path.has_extension() || input_path.extension() != ".evp")
-            return dv_result(dv_status::error, "Input extension must be .evp");
+            return evp_result(evp_result::e_status::error, "Input extension must be .evp");
     }
     catch (const std::exception& ex) {
-        return dv_result(dv_status::error, ex.what());
+        return evp_result(evp_result::e_status::error, ex.what());
     }
     catch (...) {
-        return dv_result(dv_status::error, "Unknow error occurred.");
+        return evp_result(evp_result::e_status::error, "Unknow error occurred.");
     }
 
-    return dv_result();
+    return evp_result();
 }

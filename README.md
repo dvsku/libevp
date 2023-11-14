@@ -12,7 +12,7 @@
     </a>
   </p>
   <p>
-    Dynamic link library for packing/unpacking Talisman Online .evp files
+    Library for packing/unpacking Talisman Online .evp files
   </p>
 </div>
 </br></br>

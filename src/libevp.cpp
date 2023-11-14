@@ -1,17 +1,18 @@
 #include "libevp.hpp"
 
+#include "md5/md5.hpp"
+
 #include <exception>
 #include <fstream>
 #include <thread>
 #include <iterator>
+#include <array>
 
 #include "utilities/filtering.hpp"
 #include "versions/formats.hpp"
-#include "lib/libdvsku_crypt/libdvsku_crypt.hpp"
 
 using namespace libevp;
 using namespace libdvsku;
-using namespace libdvsku::crypt;
 
 ///////////////////////////////////////////////////////////////////////////////
 // UTILITIES
@@ -30,28 +31,29 @@ struct file_desc {
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt = false, const std::string& key = "",
-	file_filter filter = file_filter::none, const bool* cancel = nullptr, evp::notify_start started = nullptr,
-	evp::notify_update update = nullptr, evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
+static dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none, 
+    const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
+    evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt = false, const std::string& key = "",
-	const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
+static dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel = nullptr, 
+    evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
 	evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
+static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
 
-dv_result is_evp_header_valid(const evp::FILE_PATH& input);
+static void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer);
 
-dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
+static dv_result is_evp_header_valid(const evp::FILE_PATH& input);
 
-dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
+static dv_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
+
+static dv_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt,
-	const std::string& key, file_filter filter)
+dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter)
 {
 	auto result = are_pack_paths_valid(input_dir, evp);
 	if (!result) return result;
@@ -65,11 +67,10 @@ dv_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool enc
 	if (!output_path.is_absolute())
 		output_path = std::filesystem::absolute(evp);
 
-	return pack_impl(input_path, output_path, encrypt, key, filter);
+	return pack_impl(input_path, output_path, filter);
 }
 
-dv_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool decrypt,
-	const std::string& key)
+dv_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
 {
 	auto result = are_unpack_paths_valid(evp, output_dir);
 	if (!result) return result;
@@ -86,14 +87,14 @@ dv_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool 
 	if (!output_path.is_absolute())
 		output_path = std::filesystem::absolute(output_dir);
 
-	return unpack_impl(input_path, output_path, decrypt, key);
+	return unpack_impl(input_path, output_path);
 }
 
-void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool encrypt,
-	const std::string& key, file_filter filter, const bool* cancel, notify_start started, notify_update update, 
+void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter, 
+    const bool* cancel, notify_start started, notify_update update, 
 	notify_finish finished, notify_error error)
 {
-	std::thread t([input_dir, evp, cancel, encrypt, key, filter, started, update, finished, error] {
+	std::thread t([input_dir, evp, cancel, filter, started, update, finished, error] {
 		auto result = are_pack_paths_valid(input_dir, evp);
 
 		if (!result) {
@@ -112,16 +113,15 @@ void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, bool en
 		if (!output_path.is_absolute())
 			output_path = std::filesystem::absolute(evp);
 
-		pack_impl(input_path, output_path, encrypt, key, filter, cancel, started, update, finished, error);
+		pack_impl(input_path, output_path, filter, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
 
-void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool decrypt,
-	const std::string& key, const bool* cancel, notify_start started, notify_update update,
-	notify_finish finished, notify_error error)
+void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, const bool* cancel, 
+    notify_start started, notify_update update, notify_finish finished, notify_error error)
 {
-	std::thread t([evp, output_dir, cancel, decrypt, key, started, update, finished, error] {
+	std::thread t([evp, output_dir, cancel, started, update, finished, error] {
 		auto result = are_unpack_paths_valid(evp, output_dir);
 
 		if (!result) {
@@ -133,7 +133,7 @@ void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool
 
 		result = is_evp_header_valid(evp);
 
-		if (result) {
+		if (!result) {
 			if (error) 
 				error(result);
 
@@ -149,7 +149,7 @@ void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, bool
 		if (!output_path.is_absolute())
 			output_path = std::filesystem::absolute(output_dir);
 
-		unpack_impl(input_path, output_path, decrypt, key, cancel, started, update, finished, error);
+		unpack_impl(input_path, output_path, cancel, started, update, finished, error);
 	});
 	t.detach();
 }
@@ -204,8 +204,7 @@ std::vector<evp::FILE_PATH> evp::get_evp_file_list(const FILE_PATH& evp) {
 	return results;
 }
 
-dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer, 
-	bool decrypt, const std::string& key) 
+dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BUFFER& buffer) 
 {
 	std::ifstream fin;
 	fin.open(evp, std::ios::binary);
@@ -216,8 +215,6 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BU
 	size_t data_block_end	= 0;
 	size_t names_block_size = 0;
 	uint64_t file_count		= 0;
-
-	libdvsku_crypt crypt(key.c_str());
 
 	fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
 
@@ -262,9 +259,6 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BU
 			fin.seekg(current_file.m_data_start_offset, std::ios_base::beg);
 			fin.read((char*)buffer.data(), current_file.m_data_size);
 
-			if (decrypt)
-				crypt.decrypt_buffer(buffer);
-
 			found = true;
 			break;
 		}
@@ -275,12 +269,11 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, BU
 	return found ? dv_result() : dv_result(dv_status::error, "File not found.");
 }
 
-dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, 
-	std::stringstream& stream, bool decrypt, const std::string& key) 
+dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream) 
 {
 	BUFFER buffer;
 	
-	auto result = get_file_from_evp(evp, file, buffer, decrypt, key);
+	auto result = get_file_from_evp(evp, file, buffer);
 	if (!result)
 		return result;
 
@@ -289,23 +282,16 @@ dv_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file,
 	return result;
 }
 
-bool evp::is_encrypted(const FILE_PATH& input) {
-	return false;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, bool encrypt, const std::string& key,
-	file_filter filter, const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, 
-	evp::notify_error error) 
+dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
+    const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
 	std::vector<file_desc> input_files;
 	size_t curr_data_offset = v1::DATA_START_OFFSET;
 	size_t footer_size = 0;
-
-	libdvsku_crypt crypt(key.c_str());
 
 	auto files = filtering::get_filtered_paths(input, filter);
 
@@ -339,14 +325,11 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 		input_file.m_data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
 		input_stream.close();
 
-		if (encrypt && filtering::should_be_encrypted(file))
-			crypt.encrypt_buffer(input_file.m_data);
-
 		// save content size
 		input_file.m_data_size = (unsigned int)input_file.m_data.size();
 
 		// hash file content
-		input_file.m_data_hash = crypt.compute_md5(input_file.m_data.data(), input_file.m_data_size);
+		input_file.m_data_hash = compute_md5(input_file.m_data.data(), input_file.m_data_size);
 
 		fout.write((char*)input_file.m_data.data(), input_file.m_data_size);
 
@@ -416,14 +399,12 @@ dv_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output,
 	return dv_result();
 }
 
-dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, bool decrypt, const std::string& key,
-	const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
+dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel, 
+    evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
 	size_t data_block_end = 0;
 	size_t names_block_size = 0;
 	uint64_t file_count = 0;
-
-	libdvsku_crypt crypt(key.c_str());
 
 	std::ifstream fin;
 	fin.open(input, std::ios::binary);
@@ -483,9 +464,6 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 		fin.seekg(curr_data_block_offset, std::ios_base::beg);
 		fin.read((char*)output_file.m_data.data(), output_file.m_data_size);
 
-		if (decrypt)
-			crypt.decrypt_buffer(output_file.m_data);
-
 		curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
 		curr_data_block_offset += output_file.m_data_size;
 
@@ -521,6 +499,16 @@ dv_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outpu
 		finished(dv_result());
 
 	return dv_result();
+}
+
+std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size) {
+    std::array<unsigned char, 16> result{};
+
+    MD5 md5_digest;
+    md5_digest.add(ptr, size);
+    md5_digest.getHash(result.data());
+
+    return result;
 }
 
 void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {

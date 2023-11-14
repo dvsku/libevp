@@ -26,6 +26,8 @@ struct file_desc {
     size_t m_data_start_offset = 0;
 };
 
+libevp::evp::buffer_process_fn buffer_process = nullptr;
+
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
@@ -66,7 +68,10 @@ evp_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_fi
     if (!output_path.is_absolute())
         output_path = std::filesystem::absolute(evp);
 
-    return pack_impl(input_path, output_path, filter);
+    auto res = pack_impl(input_path, output_path, filter);
+    buffer_process = nullptr;
+
+    return res;
 }
 
 evp_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
@@ -86,7 +91,10 @@ evp_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
     if (!output_path.is_absolute())
         output_path = std::filesystem::absolute(output_dir);
 
-    return unpack_impl(input_path, output_path);
+    auto res = unpack_impl(input_path, output_path);
+    buffer_process = nullptr;
+
+    return res;
 }
 
 void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter, 
@@ -113,6 +121,8 @@ void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_fi
             output_path = std::filesystem::absolute(evp);
 
         pack_impl(input_path, output_path, filter, cancel, started, update, finished, error);
+
+        buffer_process = nullptr;
     });
     t.detach();
 }
@@ -149,6 +159,8 @@ void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, cons
             output_path = std::filesystem::absolute(output_dir);
 
         unpack_impl(input_path, output_path, cancel, started, update, finished, error);
+
+        buffer_process = nullptr;
     });
     t.detach();
 }
@@ -258,12 +270,17 @@ evp_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, B
             fin.seekg(current_file.m_data_start_offset, std::ios_base::beg);
             fin.read((char*)buffer.data(), current_file.m_data_size);
 
+            if (buffer_process)
+                buffer_process(file, buffer);
+
             found = true;
             break;
         }
 
         curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
     }
+
+    buffer_process = nullptr;
 
     return found ? evp_result() : evp_result(evp_result::e_status::error, "File not found.");
 }
@@ -323,6 +340,9 @@ evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output
         std::ifstream input_stream(file, std::ios::binary);
         input_file.m_data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
         input_stream.close();
+
+        if (buffer_process)
+            buffer_process(file, input_file.m_data);
 
         // save content size
         input_file.m_data_size = (unsigned int)input_file.m_data.size();
@@ -462,6 +482,9 @@ evp_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& outp
         // go to curr data block pos
         fin.seekg(curr_data_block_offset, std::ios_base::beg);
         fin.read((char*)output_file.m_data.data(), output_file.m_data_size);
+
+        if (buffer_process)
+            buffer_process(output_file.m_path, output_file.m_data);
 
         curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
         curr_data_block_offset += output_file.m_data_size;

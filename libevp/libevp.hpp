@@ -59,6 +59,9 @@ namespace libevp {
         // void f(evp_result)
         typedef std::function<void(evp_result)> notify_error;
 
+        // void f(const std::filesystem::path&, std::vector<uint8_t>&)
+        typedef std::function<void(const std::filesystem::path& file, std::vector<uint8_t>& buffer)> buffer_process_fn;
+
         typedef std::filesystem::path   FILE_PATH;
         typedef std::filesystem::path   FOLDER_PATH;
         typedef std::vector<uint8_t>    BUFFER;
@@ -173,5 +176,12 @@ namespace libevp {
          *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
         */
         static LIBEVP_API evp_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream);
+
+        /*
+        *   Set a handler to process a file buffer before it's packed or
+        *   after it's unpacked.
+        *   The handler is reset after each pack/unpack call.
+        */
+        static LIBEVP_API void do_buffer_processing(buffer_process_fn fn);
     };
 }

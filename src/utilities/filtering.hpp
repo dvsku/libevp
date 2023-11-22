@@ -4,7 +4,7 @@
 #include <filesystem>
 
 namespace libevp {
-    enum class file_filter;
+    enum class file_filter : unsigned int;
 
     class filtering {
     public:

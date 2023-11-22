@@ -33,12 +33,12 @@ libevp::evp::buffer_process_fn buffer_process = nullptr;
 ///////////////////////////////////////////////////////////////////////////////
 
 static evp_result pack_impl(const evp::DIR_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none,
-    const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
-    evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
+    const bool* cancel = nullptr, evp::start_callback_fn started = nullptr, evp::update_callback_fn update = nullptr, 
+    evp::finish_callback_fn finished = nullptr, evp::error_callback_fn error = nullptr);
 
 static evp_result unpack_impl(const evp::FILE_PATH& input, const evp::DIR_PATH& output, const bool* cancel = nullptr,
-    evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
-    evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
+    evp::start_callback_fn started = nullptr, evp::update_callback_fn update = nullptr, 
+    evp::finish_callback_fn finished = nullptr, evp::error_callback_fn error = nullptr);
 
 static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
 
@@ -98,8 +98,8 @@ evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir)
 }
 
 void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filter filter, 
-    const bool* cancel, notify_start started, notify_update update, 
-    notify_finish finished, notify_error error)
+    const bool* cancel, start_callback_fn started, update_callback_fn update, 
+    finish_callback_fn finished, error_callback_fn error)
 {
     std::thread t([input_dir, evp, cancel, filter, started, update, finished, error] {
         auto result = are_pack_paths_valid(input_dir, evp);
@@ -128,7 +128,7 @@ void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filte
 }
 
 void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, const bool* cancel, 
-    notify_start started, notify_update update, notify_finish finished, notify_error error)
+    start_callback_fn started, update_callback_fn update, finish_callback_fn finished, error_callback_fn error)
 {
     std::thread t([evp, output_dir, cancel, started, update, finished, error] {
         auto result = are_unpack_paths_valid(evp, output_dir);
@@ -307,7 +307,7 @@ std::vector<evp::FILE_PATH> evp::get_filtered_files(const DIR_PATH& input, file_
 ///////////////////////////////////////////////////////////////////////////////
 
 evp_result pack_impl(const evp::DIR_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
-    const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
+    const bool* cancel, evp::start_callback_fn started, evp::update_callback_fn update, evp::finish_callback_fn finished, evp::error_callback_fn error) 
 {
     std::vector<file_desc> input_files;
     size_t curr_data_offset = v1::DATA_START_OFFSET;
@@ -423,7 +423,7 @@ evp_result pack_impl(const evp::DIR_PATH& input, const evp::FILE_PATH& output, f
 }
 
 evp_result unpack_impl(const evp::FILE_PATH& input, const evp::DIR_PATH& output, const bool* cancel, 
-    evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
+    evp::start_callback_fn started, evp::update_callback_fn update, evp::finish_callback_fn finished, evp::error_callback_fn error) 
 {
     size_t data_block_end = 0;
     size_t names_block_size = 0;

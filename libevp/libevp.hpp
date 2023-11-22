@@ -48,16 +48,16 @@ namespace libevp {
     class evp {
     public:
         // void f()
-        typedef std::function<void()> notify_start;
+        typedef std::function<void()> start_callback_fn;
 
         // void f(evp_result)
-        typedef std::function<void(evp_result)> notify_finish;
+        typedef std::function<void(evp_result)> finish_callback_fn;
 
         // void f(float)
-        typedef std::function<void(float)> notify_update;
+        typedef std::function<void(float)> update_callback_fn;
 
         // void f(evp_result)
-        typedef std::function<void(evp_result)> notify_error;
+        typedef std::function<void(evp_result)> error_callback_fn;
 
         // void f(const std::filesystem::path&, std::vector<uint8_t>&)
         typedef std::function<void(const std::filesystem::path& file, std::vector<uint8_t>& buffer)> buffer_process_fn;
@@ -119,8 +119,8 @@ namespace libevp {
          *      status == evp_result::e_status::cancelled      packing cancelled by user
         */
         static LIBEVP_API void pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filter filter = file_filter::none,
-            const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
-            notify_finish finished = nullptr, notify_error error = nullptr);
+            const bool* cancel = nullptr, start_callback_fn started = nullptr, update_callback_fn update = nullptr,
+            finish_callback_fn finished = nullptr, error_callback_fn error = nullptr);
 
         /*
          *  Asynchronously unpacks .evp archive contents into a dir
@@ -139,8 +139,8 @@ namespace libevp {
          *      status == evp_result::e_status::cancelled      unpacking cancelled by user
         */
         static LIBEVP_API void unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, const bool* cancel = nullptr, 
-            notify_start started = nullptr, notify_update update = nullptr, 
-            notify_finish finished = nullptr, notify_error error = nullptr);
+            start_callback_fn started = nullptr, update_callback_fn update = nullptr, 
+            finish_callback_fn finished = nullptr, error_callback_fn error = nullptr);
 
         /*
          *  Get list of files packed inside .evp archive

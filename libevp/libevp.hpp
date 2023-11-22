@@ -178,6 +178,16 @@ namespace libevp {
         static LIBEVP_API evp_result get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream);
 
         /*
+         *  Get filtered files
+         * 
+         *  @param input    -> input dir
+         *  @param filter   -> filter
+         * 
+         *  @returns std::vector<FILE_PATH> -> filtered files
+        */
+        static LIBEVP_API std::vector<FILE_PATH> get_filtered_files(const FOLDER_PATH& input, file_filter filter);
+
+        /*
         *   Set a handler to process a file buffer before it's packed or
         *   after it's unpacked.
         *   The handler is reset after each pack/unpack call.

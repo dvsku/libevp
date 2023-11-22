@@ -298,6 +298,10 @@ evp_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, s
     return result;
 }
 
+std::vector<evp::FILE_PATH> evp::get_filtered_files(const FOLDER_PATH& input, file_filter filter) {
+    return filtering::get_filtered_paths(input, filter);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////

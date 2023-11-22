@@ -32,11 +32,11 @@ libevp::evp::buffer_process_fn buffer_process = nullptr;
 // IMPL FORWARD DECLARE
 ///////////////////////////////////////////////////////////////////////////////
 
-static evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none,
+static evp_result pack_impl(const evp::DIR_PATH& input, const evp::FILE_PATH& output, file_filter filter = file_filter::none,
     const bool* cancel = nullptr, evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
     evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
-static evp_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel = nullptr,
+static evp_result unpack_impl(const evp::FILE_PATH& input, const evp::DIR_PATH& output, const bool* cancel = nullptr,
     evp::notify_start started = nullptr, evp::notify_update update = nullptr, 
     evp::notify_finish finished = nullptr, evp::notify_error error = nullptr);
 
@@ -46,15 +46,15 @@ static void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned
 
 static evp_result is_evp_header_valid(const evp::FILE_PATH& input);
 
-static evp_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output);
+static evp_result are_pack_paths_valid(const evp::DIR_PATH& input, const evp::FILE_PATH& output);
 
-static evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output);
+static evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::DIR_PATH& output);
 
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 ///////////////////////////////////////////////////////////////////////////////
 
-evp_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter)
+evp_result evp::pack(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filter filter)
 {
     auto result = are_pack_paths_valid(input_dir, evp);
     if (!result) return result;
@@ -74,7 +74,7 @@ evp_result evp::pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_fi
     return res;
 }
 
-evp_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
+evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir)
 {
     auto result = are_unpack_paths_valid(evp, output_dir);
     if (!result) return result;
@@ -97,7 +97,7 @@ evp_result evp::unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir)
     return res;
 }
 
-void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter, 
+void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filter filter, 
     const bool* cancel, notify_start started, notify_update update, 
     notify_finish finished, notify_error error)
 {
@@ -127,7 +127,7 @@ void evp::pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_fi
     t.detach();
 }
 
-void evp::unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, const bool* cancel, 
+void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, const bool* cancel, 
     notify_start started, notify_update update, notify_finish finished, notify_error error)
 {
     std::thread t([evp, output_dir, cancel, started, update, finished, error] {
@@ -298,7 +298,7 @@ evp_result evp::get_file_from_evp(const FILE_PATH& evp, const FILE_PATH& file, s
     return result;
 }
 
-std::vector<evp::FILE_PATH> evp::get_filtered_files(const FOLDER_PATH& input, file_filter filter) {
+std::vector<evp::FILE_PATH> evp::get_filtered_files(const DIR_PATH& input, file_filter filter) {
     return filtering::get_filtered_paths(input, filter);
 }
 
@@ -306,7 +306,7 @@ std::vector<evp::FILE_PATH> evp::get_filtered_files(const FOLDER_PATH& input, fi
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////
 
-evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
+evp_result pack_impl(const evp::DIR_PATH& input, const evp::FILE_PATH& output, file_filter filter, 
     const bool* cancel, evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
     std::vector<file_desc> input_files;
@@ -422,7 +422,7 @@ evp_result pack_impl(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output
     return evp_result();
 }
 
-evp_result unpack_impl(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output, const bool* cancel, 
+evp_result unpack_impl(const evp::FILE_PATH& input, const evp::DIR_PATH& output, const bool* cancel, 
     evp::notify_start started, evp::notify_update update, evp::notify_finish finished, evp::notify_error error) 
 {
     size_t data_block_end = 0;
@@ -566,7 +566,7 @@ evp_result is_evp_header_valid(const evp::FILE_PATH& input) {
     return evp_result();
 }
 
-evp_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_PATH& output) {
+evp_result are_pack_paths_valid(const evp::DIR_PATH& input, const evp::FILE_PATH& output) {
     evp::FILE_PATH input_path(input);
     evp::FILE_PATH output_path(output);
 
@@ -602,7 +602,7 @@ evp_result are_pack_paths_valid(const evp::FOLDER_PATH& input, const evp::FILE_P
     return evp_result();
 }
 
-evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::FOLDER_PATH& output) {
+evp_result are_unpack_paths_valid(const evp::FILE_PATH& input, const evp::DIR_PATH& output) {
     evp::FILE_PATH input_path(input);
     evp::FILE_PATH output_path(output);
 

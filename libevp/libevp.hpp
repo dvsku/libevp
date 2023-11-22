@@ -63,18 +63,18 @@ namespace libevp {
         typedef std::function<void(const std::filesystem::path& file, std::vector<uint8_t>& buffer)> buffer_process_fn;
 
         typedef std::filesystem::path   FILE_PATH;
-        typedef std::filesystem::path   FOLDER_PATH;
+        typedef std::filesystem::path   DIR_PATH;
         typedef std::vector<uint8_t>    BUFFER;
 
     public:
 
         /*
-         *  Packs files in folder into a .evp archive
+         *  Packs files in dir into a .evp archive
          *
-         *  @param input    -> folder path containing files to pack
-         *  @param output   -> file path where to save the created .evp archive
-         *  @param filter   ->
-         *      none: packs all files in folder;
+         *  @param input_dir    -> dir path containing files to pack
+         *  @param evp          -> file path where to save the created .evp archive
+         *  @param filter       ->
+         *      none: packs all files in dir;
          *      client: packs only Talisman Online client related files;
          *      server: packs only Talisman Online server related files
          * 
@@ -82,28 +82,28 @@ namespace libevp {
          *      status == evp_result::e_status::ok         packed successfully;
          *      status == evp_result::e_status::error      an error occurred during packing, msg contains details;
         */
-        static LIBEVP_API evp_result pack(const FOLDER_PATH& input_dir, const FILE_PATH& evp,
+        static LIBEVP_API evp_result pack(const DIR_PATH& input_dir, const FILE_PATH& evp,
             file_filter filter = file_filter::none);
 
         /*
-         *  Unpacks .evp archive contents into a folder
+         *  Unpacks .evp archive contents into a dir
          *
-         *  @param input    -> file path to .evp archive
-         *  @param output   -> folder path where to save unpacked files
+         *  @param evp          -> file path to .evp archive
+         *  @param output_dir   -> dir path where to save unpacked files
          *
          *  @returns evp_result
          *      status == evp_result::e_status::ok         unpacked successfully;
          *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
         */
-        static LIBEVP_API evp_result unpack(const FILE_PATH& evp, const FOLDER_PATH& output_dir);
+        static LIBEVP_API evp_result unpack(const FILE_PATH& evp, const DIR_PATH& output_dir);
 
         /*
-         *  Asynchronously packs files in folder into a .evp archive
+         *  Asynchronously packs files in dir into a .evp archive
          *
-         *  @param input    -> folder path containing files to pack
-         *  @param output   -> file path where to save the created .evp archive
-         *  @param filter   ->
-         *      none:   packs all files in folder;
+         *  @param input_dir    -> dir path containing files to pack
+         *  @param evp          -> file path where to save the created .evp archive
+         *  @param filter       ->
+         *      none:   packs all files in dir;
          *      client: packs only Talisman Online client related files;
          *      server: packs only Talisman Online server related files
          *  
@@ -118,15 +118,15 @@ namespace libevp {
          *      status == evp_result::e_status::error          an error occurred during packing, msg contains details;
          *      status == evp_result::e_status::cancelled      packing cancelled by user
         */
-        static LIBEVP_API void pack_async(const FOLDER_PATH& input_dir, const FILE_PATH& evp, file_filter filter = file_filter::none,
+        static LIBEVP_API void pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, file_filter filter = file_filter::none,
             const bool* cancel = nullptr, notify_start started = nullptr, notify_update update = nullptr,
             notify_finish finished = nullptr, notify_error error = nullptr);
 
         /*
-         *  Asynchronously unpacks .evp archive contents into a folder
+         *  Asynchronously unpacks .evp archive contents into a dir
          *
          *  @param evp          -> file path to .evp archive
-         *  @param output_dir   -> folder path where to save unpacked files
+         *  @param output_dir   -> dir path where to save unpacked files
          *  @param cancel       -> pointer to bool that cancels unpacking if value is true
          *  @param started      -> callback that's called when unpacking starts
          *  @param update       -> callback that's called when there's progress update
@@ -138,7 +138,7 @@ namespace libevp {
          *      status == evp_result::e_status::error          an error occurred during unpacking, msg contains details;
          *      status == evp_result::e_status::cancelled      unpacking cancelled by user
         */
-        static LIBEVP_API void unpack_async(const FILE_PATH& evp, const FOLDER_PATH& output_dir, const bool* cancel = nullptr, 
+        static LIBEVP_API void unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, const bool* cancel = nullptr, 
             notify_start started = nullptr, notify_update update = nullptr, 
             notify_finish finished = nullptr, notify_error error = nullptr);
 
@@ -185,7 +185,7 @@ namespace libevp {
          * 
          *  @returns std::vector<FILE_PATH> -> filtered files
         */
-        static LIBEVP_API std::vector<FILE_PATH> get_filtered_files(const FOLDER_PATH& input, file_filter filter);
+        static LIBEVP_API std::vector<FILE_PATH> get_filtered_files(const DIR_PATH& input, file_filter filter);
 
         /*
         *   Set a handler to process a file buffer before it's packed or

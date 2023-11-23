@@ -302,6 +302,10 @@ std::vector<evp::FILE_PATH> evp::get_filtered_files(const DIR_PATH& input, file_
     return filtering::get_filtered_paths(input, filter);
 }
 
+void libevp::evp::do_buffer_processing(buffer_process_fn fn) {
+    buffer_process = fn;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // IMPL
 ///////////////////////////////////////////////////////////////////////////////

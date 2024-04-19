@@ -27,20 +27,20 @@ static bool path_contains_dir(const std::filesystem::path& path, const std::vect
 static bool path_contains_filename(const std::filesystem::path& path, const std::vector<std::string>& files);
 static bool path_contains_extension(const std::filesystem::path& path, const std::vector<std::string>& extensions);
 
-std::vector<std::filesystem::path> filtering::get_filtered_paths(const std::filesystem::path& dir, file_filter filter) {
+std::vector<std::filesystem::path> filtering::get_filtered_paths(const std::filesystem::path& dir, evp_filter filter) {
     std::vector<std::filesystem::path> results;
 
     for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(dir)) {
         if (!std::filesystem::is_regular_file(dir_entry.path())) continue;
 
         switch (filter) {
-            case file_filter::client_only: {
+            case evp_filter::client_only: {
                 if (path_contains_dir(dir_entry.path(), CLIENT_FOLDERS) || path_contains_filename(dir_entry.path(), CLIENT_FILES))
                     results.push_back(dir_entry.path());
 
                 break;
             }
-            case file_filter::server_only: {
+            case evp_filter::server_only: {
                 if (path_contains_dir(dir_entry.path(), SERVER_FOLDERS) || path_contains_filename(dir_entry.path(), SERVER_FILES))
                     results.push_back(dir_entry.path());
 

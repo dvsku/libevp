@@ -4,11 +4,11 @@
 #include <filesystem>
 
 namespace libevp {
-    enum class file_filter : unsigned int;
+    enum class evp_filter : uint32_t;
 
     class filtering {
     public:
         // Get paths to files to pack with filtering
-        static std::vector<std::filesystem::path> get_filtered_paths(const std::filesystem::path& dir, file_filter filter);
+        static std::vector<std::filesystem::path> get_filtered_paths(const std::filesystem::path& dir, evp_filter filter);
     };
 }

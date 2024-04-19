@@ -1,5 +1,5 @@
-#include "libevp.hpp"
-#include "test/utilities_assert.hpp"
+#include <libevp.hpp>
+#include <gtest/gtest.h>
 
 #include <fstream>
 #include <iterator>
@@ -9,7 +9,7 @@
 
 using namespace libevp;
 
-bool compare_files(const std::string& p1, const std::string& p2) {
+static bool compare_files(const std::string& p1, const std::string& p2) {
     std::ifstream f1(p1, std::ifstream::binary | std::ifstream::ate);
     std::ifstream f2(p2, std::ifstream::binary | std::ifstream::ate);
 
@@ -28,129 +28,81 @@ bool compare_files(const std::string& p1, const std::string& p2) {
         std::istreambuf_iterator<char>(f2.rdbuf()));
 }
 
-bool compare_buffers(const std::vector<uint8_t>& b1, const std::vector<uint8_t>& b2) {
+static bool compare_buffers(const std::vector<uint8_t>& b1, const std::vector<uint8_t>& b2) {
     if (b1.size() != b2.size())
         return false;
 
     return std::equal(b1.begin(), b1.end(), b2.begin());
 }
 
-int v1_unpacking_single_file(const std::string& base) {
-    std::string input  = base + std::string("/test/v1/resources/valid_single_file.evp");
-    std::string output = base + std::string("/test/v1/resources/unpack_here/");
-    std::string valid  = base + std::string("/test/v1/resources/files_to_pack/subfolder_2/text_3.txt");
+TEST(unpacking, v1_unpacking_single_file) {
+    std::string input       = BASE_PATH + std::string("/test/v1/resources/valid_single_file.evp");
+    std::string output      = BASE_PATH + std::string("/test/v1/resources/unpack_here/");
+    std::string valid       = BASE_PATH + std::string("/test/v1/resources/files_to_pack/subfolder_2/text_3.txt");
+    std::string output_file = BASE_PATH + std::string("/test/v1/resources/unpack_here/text_3.txt");
 
     std::filesystem::create_directories(output);
 
-    std::string output_file = base + std::string("/test/v1/resources/unpack_here/text_3.txt");
+    auto r1 = evp::unpack(input, output);
 
-    try {
-        auto r1 = evp::unpack(input, output);
+    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    EXPECT_TRUE(compare_files(output_file, valid));
 
-        if (!r1)
-            std::filesystem::remove_all(output);
-
-        ASSERT(r1);
-
-        auto r2 = compare_files(output_file, valid);
-        std::filesystem::remove_all(output);
-
-        ASSERT(r2);
-    }
-    catch (...) { return 1; }
-
-    return 0;
+    std::filesystem::remove_all(output);
 }
 
-int v1_unpacking_folder(const std::string& base) {
-    std::string input  = base + std::string("/test/v1/resources/valid_folders.evp");
-    std::string output = base + std::string("/test/v1/resources/unpack_here/");
-    std::string valid  = base + std::string("/test/v1/resources/files_to_pack/");
+TEST(unpacking, v1_unpacking_folder) {
+    std::string input  = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
+    std::string output = BASE_PATH + std::string("/test/v1/resources/unpack_here/");
+    std::string valid  = BASE_PATH + std::string("/test/v1/resources/files_to_pack/");
 
     std::filesystem::create_directories(output);
 
-    try {
-        auto r1 = evp::unpack(input, output);
+    auto r1 = evp::unpack(input, output);
+    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
 
-        if (!r1)
-            std::filesystem::remove_all(output);
+    for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(output)) {
+        if (std::filesystem::is_regular_file(dir_entry.path())) {
+            auto relative_path = std::regex_replace(dir_entry.path().generic_string(), std::regex(output), "");
+            std::string valid_file = valid + relative_path;
 
-        ASSERT(r1);
-
-        for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(output)) {
-            if (std::filesystem::is_regular_file(dir_entry.path())) {
-                auto relative_path = std::regex_replace(dir_entry.path().generic_string(), std::regex(output), "");
-                std::string valid_file = valid + relative_path;
-
-                auto r2 = compare_files(dir_entry.path().generic_string(), valid_file);
-
-                if(!r2)
-                    std::filesystem::remove_all(output);
-
-                ASSERT(r2);
-            }
+            EXPECT_TRUE(compare_files(dir_entry.path().generic_string(), valid_file));
         }
-
-        std::filesystem::remove_all(output);
     }
-    catch (...) { return 1; }
 
-    return 0;
+    std::filesystem::remove_all(output);
 }
 
-int v1_get_file_from_evp(const std::string& base) {
-    std::string input = base + std::string("/test/v1/resources/valid_folders.evp");
-    std::string valid = base + std::string("/test/v1/resources/files_to_pack/text_1.txt");
+TEST(unpacking, v1_get_file_from_evp) {
+    std::string input = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
+    std::string valid = BASE_PATH + std::string("/test/v1/resources/files_to_pack/text_1.txt");
 
     std::vector<uint8_t> buffer;
 
     auto r1 = evp::get_file_from_evp(input, "text_1.txt", buffer);
-    ASSERT(r1);
+    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
-
-    ASSERT(stream.is_open());
-    ASSERT(!stream.bad());
+    EXPECT_TRUE(stream.is_open());
 
     std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-
-    ASSERT(compare_buffers(buffer, contents));
-
-    return 0;
+    EXPECT_TRUE(compare_buffers(buffer, contents));
 }
 
-int v1_get_file_from_evp_stream(const std::string& base) {
-    std::string input = base + std::string("/test/v1/resources/valid_folders.evp");
-    std::string valid = base + std::string("/test/v1/resources/files_to_pack/text_1.txt");
+TEST(unpacking, v1_get_file_from_evp_stream) {
+    std::string input = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
+    std::string valid = BASE_PATH + std::string("/test/v1/resources/files_to_pack/text_1.txt");
 
     std::stringstream ss;
 
     auto r1 = evp::get_file_from_evp(input, "text_1.txt", ss);
-    ASSERT(r1);
+    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
-
-    ASSERT(stream.is_open());
-    ASSERT(!stream.bad());
+    EXPECT_TRUE(stream.is_open());
 
     std::vector<uint8_t> buffer((std::istreambuf_iterator<char>(ss)), std::istreambuf_iterator<char>());
     std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
 
-    ASSERT(compare_buffers(buffer, contents));
-
-    return 0;
-}
-
-int main(int argc, char* argv[]) {
-    if (argc == 3) {
-        switch (std::stoi(argv[1])) {
-            case 0: return v1_unpacking_single_file(argv[2]);
-            case 1: return v1_unpacking_folder(argv[2]);
-            case 2: return v1_get_file_from_evp(argv[2]);
-            case 3: return v1_get_file_from_evp_stream(argv[2]);
-            default: break;
-        }
-    }
-
-    return 0;
+    EXPECT_TRUE(compare_buffers(buffer, contents));
 }

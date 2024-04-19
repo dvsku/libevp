@@ -12,4 +12,6 @@ IF(EVP_TEST AND PROJECT_IS_TOP_LEVEL)
 	)
 
 	FetchContent_MakeAvailable(googletest)
+
+	SET(GTEST_INCLUDES "${googletest_SOURCE_DIR}/googletest/include" PARENT_SCOPE)
 ENDIF()

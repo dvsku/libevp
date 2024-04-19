@@ -28,9 +28,9 @@ static bool compare_files(const std::string& p1, const std::string& p2) {
 }
 
 TEST(packing, v1_packing_single_file) {
-    std::string input  = BASE_PATH + std::string("/test/v1/resources/files_to_pack/subfolder_2");
-    std::string output = BASE_PATH + std::string("/test/v1/resources/v1_packing_single_file.evp");
-    std::string valid  = BASE_PATH + std::string("/test/v1/resources/valid_single_file.evp");
+    std::string input  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2");
+    std::string output = BASE_PATH + std::string("/tests/v1/resources/v1_packing_single_file.evp");
+    std::string valid  = BASE_PATH + std::string("/tests/v1/resources/valid_single_file.evp");
 
     auto r1 = evp::pack(input, output);
 
@@ -41,9 +41,9 @@ TEST(packing, v1_packing_single_file) {
 }
 
 TEST(packing, v1_packing_folder) {
-    std::string input  = BASE_PATH + std::string("/test/v1/resources/files_to_pack");
-    std::string output = BASE_PATH + std::string("/test/v1/resources/v1_packing_folder.evp");
-    std::string valid  = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
+    std::string input  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack");
+    std::string output = BASE_PATH + std::string("/tests/v1/resources/v1_packing_folder.evp");
+    std::string valid  = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
 
     auto r1 = evp::pack(input, output);
 

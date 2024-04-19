@@ -36,10 +36,10 @@ static bool compare_buffers(const std::vector<uint8_t>& b1, const std::vector<ui
 }
 
 TEST(unpacking, v1_unpacking_single_file) {
-    std::string input       = BASE_PATH + std::string("/test/v1/resources/valid_single_file.evp");
-    std::string output      = BASE_PATH + std::string("/test/v1/resources/unpack_here/");
-    std::string valid       = BASE_PATH + std::string("/test/v1/resources/files_to_pack/subfolder_2/text_3.txt");
-    std::string output_file = BASE_PATH + std::string("/test/v1/resources/unpack_here/text_3.txt");
+    std::string input       = BASE_PATH + std::string("/tests/v1/resources/valid_single_file.evp");
+    std::string output      = BASE_PATH + std::string("/tests/v1/resources/unpack_here/");
+    std::string valid       = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2/text_3.txt");
+    std::string output_file = BASE_PATH + std::string("/tests/v1/resources/unpack_here/text_3.txt");
 
     std::filesystem::create_directories(output);
 
@@ -52,9 +52,9 @@ TEST(unpacking, v1_unpacking_single_file) {
 }
 
 TEST(unpacking, v1_unpacking_folder) {
-    std::string input  = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
-    std::string output = BASE_PATH + std::string("/test/v1/resources/unpack_here/");
-    std::string valid  = BASE_PATH + std::string("/test/v1/resources/files_to_pack/");
+    std::string input  = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
+    std::string output = BASE_PATH + std::string("/tests/v1/resources/unpack_here/");
+    std::string valid  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/");
 
     std::filesystem::create_directories(output);
 
@@ -74,8 +74,8 @@ TEST(unpacking, v1_unpacking_folder) {
 }
 
 TEST(unpacking, v1_get_file_from_evp) {
-    std::string input = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
-    std::string valid = BASE_PATH + std::string("/test/v1/resources/files_to_pack/text_1.txt");
+    std::string input = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
+    std::string valid = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/text_1.txt");
 
     std::vector<uint8_t> buffer;
 
@@ -90,8 +90,8 @@ TEST(unpacking, v1_get_file_from_evp) {
 }
 
 TEST(unpacking, v1_get_file_from_evp_stream) {
-    std::string input = BASE_PATH + std::string("/test/v1/resources/valid_folders.evp");
-    std::string valid = BASE_PATH + std::string("/test/v1/resources/files_to_pack/text_1.txt");
+    std::string input = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
+    std::string valid = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/text_1.txt");
 
     std::stringstream ss;
 

@@ -115,7 +115,7 @@ std::vector<evp::file_path_t> evp::get_evp_file_list(const file_path_t& evp) {
     return results;
 }
 
-evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& file, buffer_t& buffer, evp_context* context) {
+evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer, evp_context* context) {
     evp_result result;
     result.status = evp_result_status::error;
 
@@ -196,7 +196,7 @@ evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& fil
 }
 
 evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& file, std::stringstream& stream, evp_context* context) {
-    buffer_t buffer;
+    std::vector<uint8_t> buffer;
 
     auto result = get_file_from_evp(evp, file, buffer);
     if (!result)

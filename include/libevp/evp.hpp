@@ -21,7 +21,6 @@ namespace libevp {
     public:
         using dir_path_t  = std::filesystem::path;
         using file_path_t = std::filesystem::path;
-        using buffer_t    = std::vector<uint8_t>;
 
     public:
         evp()           = default;
@@ -39,13 +38,13 @@ namespace libevp {
          *  @param input_dir    -> dir path containing files to pack
          *  @param evp          -> file path where to save the created .evp archive
          *  @param filter       ->
-         *      none: packs all files in dir;
+         *      none:   packs all files in dir;
          *      client: packs only Talisman Online client related files;
          *      server: packs only Talisman Online server related files
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok         packed successfully;
-         *      status == evp_result::e_status::error      an error occurred during packing, msg contains details;
+         *      status == evp_result_status::ok         packed successfully;
+         *      status == evp_result_status::error      an error occurred during packing, msg contains details;
         */
         LIBEVP_API evp_result pack(const dir_path_t& input_dir, const file_path_t& evp,
             evp_filter filter = evp_filter::none);
@@ -57,8 +56,8 @@ namespace libevp {
          *  @param output_dir   -> dir path where to save unpacked files
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok         unpacked successfully;
-         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result_status::ok         unpacked successfully;
+         *      status == evp_result_status::error      an error occurred during unpacking, msg contains details;
         */
         LIBEVP_API evp_result unpack(const file_path_t& evp, const dir_path_t& output_dir);
 
@@ -72,16 +71,12 @@ namespace libevp {
          *      client: packs only Talisman Online client related files;
          *      server: packs only Talisman Online server related files
          *
-         *  @param cancel   -> pointer to bool that cancels packing if value is true
-         *  @param started  -> callback that's called when packing starts
-         *  @param update   -> callback that's called when there's progress update
-         *  @param finished -> callback that's called when packing ends
-         *  @param error    -> callback that's called when an error occurres
+         *  @param context -> pointer to context that has callbacks
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok             packed successfully;
-         *      status == evp_result::e_status::error          an error occurred during packing, msg contains details;
-         *      status == evp_result::e_status::cancelled      packing cancelled by user
+         *      status == evp_result_status::ok             packed successfully;
+         *      status == evp_result_status::error          an error occurred during packing, msg contains details;
+         *      status == evp_result_status::cancelled      packing cancelled by user
         */
         LIBEVP_API void pack_async(const dir_path_t& input_dir, const file_path_t& evp,
             evp_filter filter = evp_filter::none, evp_context* context = nullptr);
@@ -91,16 +86,12 @@ namespace libevp {
          *
          *  @param evp          -> file path to .evp archive
          *  @param output_dir   -> dir path where to save unpacked files
-         *  @param cancel       -> pointer to bool that cancels unpacking if value is true
-         *  @param started      -> callback that's called when unpacking starts
-         *  @param update       -> callback that's called when there's progress update
-         *  @param finished     -> callback that's called when unpacking ends
-         *  @param error        -> callback that's called when an error occurres
+         *  @param context      -> pointer to context that has callbacks
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok             unpacked successfully;
-         *      status == evp_result::e_status::error          an error occurred during unpacking, msg contains details;
-         *      status == evp_result::e_status::cancelled      unpacking cancelled by user
+         *      status == evp_result_status::ok             unpacked successfully;
+         *      status == evp_result_status::error          an error occurred during unpacking, msg contains details;
+         *      status == evp_result_status::cancelled      unpacking cancelled by user
         */
         LIBEVP_API void unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context = nullptr);
 
@@ -109,7 +100,7 @@ namespace libevp {
          *
          *  @param evp -> file path to .evp archive
          *
-         *  @returns std::vector<FILE_PATH> -> list of files
+         *  @returns std::vector<file_path_t> -> list of files
         */
         LIBEVP_API std::vector<file_path_t> get_evp_file_list(const file_path_t& evp);
 
@@ -119,13 +110,14 @@ namespace libevp {
          *  @param evp      -> file path to .evp archive
          *  @param file     -> file path to unpack
          *  @param buffer   -> buffer to unpack into
+         *  @param context  -> pointer to context that buffer processing fn
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok         unpacked successfully;
-         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result_status::ok         unpacked successfully;
+         *      status == evp_result_status::error      an error occurred during unpacking, msg contains details;
         */
         LIBEVP_API evp_result get_file_from_evp(const file_path_t& evp, const file_path_t& file,
-            buffer_t& buffer, evp_context* context = nullptr);
+            std::vector<uint8_t>& buffer, evp_context* context = nullptr);
 
         /*
          *  Unpack a single file from .evp archive into a stringstream
@@ -133,10 +125,11 @@ namespace libevp {
          *  @param evp      -> file path to .evp archive
          *  @param file     -> file path to unpack
          *  @param stream   -> stream to unpack into
+         *  @param context  -> pointer to context that buffer processing fn
          *
          *  @returns evp_result
-         *      status == evp_result::e_status::ok         unpacked successfully;
-         *      status == evp_result::e_status::error      an error occurred during unpacking, msg contains details;
+         *      status == evp_result_status::ok         unpacked successfully;
+         *      status == evp_result_status::error      an error occurred during unpacking, msg contains details;
         */
         LIBEVP_API evp_result get_file_from_evp(const file_path_t& evp, const file_path_t& file,
             std::stringstream& stream, evp_context* context = nullptr);
@@ -147,7 +140,7 @@ namespace libevp {
          *  @param input    -> input dir
          *  @param filter   -> filter
          *
-         *  @returns std::vector<FILE_PATH> -> filtered files
+         *  @returns std::vector<file_path_t> -> filtered files
         */
         LIBEVP_API std::vector<file_path_t> get_filtered_files(const dir_path_t& input, evp_filter filter);
     };

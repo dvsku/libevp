@@ -36,6 +36,8 @@ static bool compare_buffers(const std::vector<uint8_t>& b1, const std::vector<ui
 }
 
 TEST(unpacking, v1_unpacking_single_file) {
+    evp evp;
+
     std::string input       = BASE_PATH + std::string("/tests/v1/resources/valid_single_file.evp");
     std::string output      = BASE_PATH + std::string("/tests/v1/resources/unpack_here/");
     std::string valid       = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2/text_3.txt");
@@ -43,23 +45,25 @@ TEST(unpacking, v1_unpacking_single_file) {
 
     std::filesystem::create_directories(output);
 
-    auto r1 = evp::unpack(input, output);
+    auto r1 = evp.unpack(input, output);
 
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
     EXPECT_TRUE(compare_files(output_file, valid));
 
     std::filesystem::remove_all(output);
 }
 
 TEST(unpacking, v1_unpacking_folder) {
+    evp evp;
+
     std::string input  = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
     std::string output = BASE_PATH + std::string("/tests/v1/resources/unpack_here/");
     std::string valid  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/");
 
     std::filesystem::create_directories(output);
 
-    auto r1 = evp::unpack(input, output);
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    auto r1 = evp.unpack(input, output);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
 
     for (auto const& dir_entry : std::filesystem::recursive_directory_iterator(output)) {
         if (std::filesystem::is_regular_file(dir_entry.path())) {
@@ -74,13 +78,15 @@ TEST(unpacking, v1_unpacking_folder) {
 }
 
 TEST(unpacking, v1_get_file_from_evp) {
+    evp evp;
+
     std::string input = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
     std::string valid = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/text_1.txt");
 
     std::vector<uint8_t> buffer;
 
-    auto r1 = evp::get_file_from_evp(input, "text_1.txt", buffer);
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    auto r1 = evp.get_file_from_evp(input, "text_1.txt", buffer);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
     EXPECT_TRUE(stream.is_open());
@@ -90,13 +96,15 @@ TEST(unpacking, v1_get_file_from_evp) {
 }
 
 TEST(unpacking, v1_get_file_from_evp_stream) {
+    evp evp;
+
     std::string input = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
     std::string valid = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/text_1.txt");
 
     std::stringstream ss;
 
-    auto r1 = evp::get_file_from_evp(input, "text_1.txt", ss);
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    auto r1 = evp.get_file_from_evp(input, "text_1.txt", ss);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
     EXPECT_TRUE(stream.is_open());

@@ -28,26 +28,30 @@ static bool compare_files(const std::string& p1, const std::string& p2) {
 }
 
 TEST(packing, v1_packing_single_file) {
+    evp evp;
+
     std::string input  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2");
     std::string output = BASE_PATH + std::string("/tests/v1/resources/v1_packing_single_file.evp");
     std::string valid  = BASE_PATH + std::string("/tests/v1/resources/valid_single_file.evp");
 
-    auto r1 = evp::pack(input, output);
+    auto r1 = evp.pack(input, output);
 
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
     EXPECT_TRUE(compare_files(output, valid));
 
     std::remove(output.c_str());
 }
 
 TEST(packing, v1_packing_folder) {
+    evp evp;
+
     std::string input  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack");
     std::string output = BASE_PATH + std::string("/tests/v1/resources/v1_packing_folder.evp");
     std::string valid  = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
 
-    auto r1 = evp::pack(input, output);
+    auto r1 = evp.pack(input, output);
 
-    EXPECT_TRUE(r1.status == evp_result::e_status::ok);
+    EXPECT_TRUE(r1.status == evp_result_status::ok);
     EXPECT_TRUE(compare_files(output, valid));
     
     std::remove(output.c_str());

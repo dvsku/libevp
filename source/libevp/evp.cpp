@@ -450,7 +450,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         }
 
         // get path relative to input path
-        int start_index = input_file.path.find(input.generic_string());
+        size_t start_index = input_file.path.find(input.generic_string());
         input_file.path.erase(start_index, input.generic_string().size());
 
         // swap slash directions
@@ -469,7 +469,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
         fout.write((char*)file_desc_bytes.data(), file_desc_bytes.size());
 
-        footer_size += file_desc_bytes.size();
+        footer_size += (uint32_t)file_desc_bytes.size();
 
         if (context)
             context->invoke_update(prog_change_y);

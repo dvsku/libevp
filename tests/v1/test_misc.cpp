@@ -5,7 +5,7 @@ using namespace libevp;
 
 TEST(misc, get_evp_file_list) {
     evp         evp;
-    std::string input = BASE_PATH + std::string("/tests/v1/resources/valid_folders.evp");
+    std::string input = BASE_PATH + std::string("/tests/v1/resources/multiple_files.evp");
 
     auto files = evp.get_evp_file_list(input);
 

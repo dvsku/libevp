@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <fstream>
+#include <iterator>
 
 using namespace libevp;
 

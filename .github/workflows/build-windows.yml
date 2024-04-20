@@ -10,6 +10,11 @@ jobs:
     build:
         runs-on: windows-latest
 
+        strategy:
+            matrix:
+                architecture: [x86, x64]
+                build_type: [Release]
+                
         steps:
         - name: Checkout repo
           uses: actions/checkout@v3
@@ -17,7 +22,7 @@ jobs:
         - name: Set up VS toolchain
           uses: ilammy/msvc-dev-cmd@v1
           with:
-                arch: x86
+                arch: ${{ matrix.architecture }}
 
         - name: Setup Ninja
           uses: ashutoshvarma/setup-ninja@master
@@ -29,7 +34,7 @@ jobs:
           with:
                 build-dir: ${{ runner.workspace }}/build
                 configure-options: -G Ninja -DCMAKE_CXX_COMPILER=cl -DCMAKE_C_COMPILER=cl
-                build-type: Release
+                build-type: ${{ matrix.build_type }}
 
         - name: Test
           working-directory: ${{ runner.workspace }}/build

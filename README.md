@@ -1,15 +1,18 @@
 <div align="center">
   <h1>libevp</h1>
   <p>
-    <a href="#">
-      <img src="https://img.shields.io/github/actions/workflow/status/dvsku/libevp/build-windows.yml?branch=main&label=windows%20build%20and%20tests"/>
-    </a>
-    <a href="#">
+    <span>
+      <img src="https://img.shields.io/github/actions/workflow/status/dvsku/libevp/build-windows.yml?branch=main&label=windows%20build"/>
+    </span>
+    <span>
+      <img src="https://img.shields.io/github/actions/workflow/status/dvsku/libevp/build-linux.yml?branch=main&label=linux%20build"/>
+    </span>
+    <span>
       <img src="https://img.shields.io/github/downloads/dvsku/libevp/total"/>
-    </a>
-    <a href="#">
+    </span>
+    <span>
       <img src="https://img.shields.io/github/license/dvsku/libevp"/>
-    </a>
+    </span>
   </p>
   <p>
     Library for packing/unpacking Talisman Online .evp files

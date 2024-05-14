@@ -175,9 +175,6 @@ evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& fil
             fin.seekg(current_file.data_start_offset, std::ios_base::beg);
             fin.read((char*)buffer.data(), current_file.data_size);
 
-            if (context)
-                context->invoke_buffer_processing(file, buffer);
-
             found = true;
             break;
         }
@@ -411,9 +408,6 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         input_file.data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
         input_stream.close();
 
-        if (context)
-            context->invoke_buffer_processing(filename, input_file.data);
-
         // save content size
         input_file.data_size = (uint32_t)input_file.data.size();
 
@@ -590,9 +584,6 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         // go to curr data block pos
         fin.seekg(curr_data_block_offset, std::ios_base::beg);
         fin.read((char*)output_file.data.data(), output_file.data_size);
-
-        if (context)
-            context->invoke_buffer_processing(output_file.path, output_file.data);
 
         curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
         curr_data_block_offset += output_file.data_size;

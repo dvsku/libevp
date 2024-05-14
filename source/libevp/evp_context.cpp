@@ -20,11 +20,6 @@ void evp_context::invoke_update(float progress) {
         update_callback(progress);
 }
 
-void evp_context::invoke_buffer_processing(const std::filesystem::path& file, std::vector<uint8_t>& buffer) {
-    if (buffer_processing_fn)
-        buffer_processing_fn(file, buffer);
-}
-
 bool evp_context::invoke_cancel() {
     if (!cancel) return false;
     return *cancel;

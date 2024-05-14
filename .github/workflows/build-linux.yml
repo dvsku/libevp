@@ -19,6 +19,12 @@ jobs:
         - name: Checkout repo
           uses: actions/checkout@v3
 
+        - name: Update apt
+          run: sudo apt-get update
+
+        - name: Install gcc/g++ packages
+          run: sudo apt-get install -y gcc-multilib g++-multilib
+
         - name: Setup Ninja
           uses: ashutoshvarma/setup-ninja@master
           with:
@@ -28,7 +34,7 @@ jobs:
           uses: ashutoshvarma/action-cmake-build@master
           with:
                 build-dir: ${{ runner.workspace }}/build
-                configure-options: -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc
+                configure-options: -G Ninja -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DLIBEVP_LINUX_ARCHITECTURE:STRING=${{ matrix.architecture }}
                 build-type: ${{ matrix.build_type }}
 
         - name: Test

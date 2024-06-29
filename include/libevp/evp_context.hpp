@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <vector>
 #include <cstdint>
+#include <atomic>
 
 namespace libevp {
     class evp;
@@ -21,7 +22,7 @@ namespace libevp {
         start_callback_t  start_callback  = nullptr;
         finish_callback_t finish_callback = nullptr;
         update_callback_t update_callback = nullptr;
-        bool*             cancel          = nullptr;
+        std::atomic_bool* cancel          = nullptr;
 
     private:
         friend evp;

@@ -22,5 +22,5 @@ void evp_context::invoke_update(float progress) {
 
 bool evp_context::invoke_cancel() {
     if (!cancel) return false;
-    return *cancel;
+    return cancel->load();
 }

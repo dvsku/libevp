@@ -23,6 +23,11 @@ struct file_desc {
     uint32_t                data_start_offset = 0;
 };
 
+/*
+    Determine archive format.
+*/
+static evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format);
+
 static evp_result verify_pack_paths(const std::filesystem::path& input, const std::filesystem::path& output);
 static evp_result verify_unpack_paths(const std::filesystem::path& input, const std::filesystem::path& output);
 
@@ -211,6 +216,30 @@ std::vector<evp::file_path_t> evp::get_filtered_files(const dir_path_t& input, e
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
+
+evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format) {
+    evp_result result;
+    result.status = evp_result_status::error;
+
+    std::shared_ptr<libevp::format::format> supported_formats[] = {
+        static_pointer_cast<libevp::format::format>(std::make_shared<libevp::format::v1::format>())
+    };
+
+    for (std::shared_ptr<libevp::format::format> supported_format : supported_formats) {
+        if (!supported_format) continue;
+        
+        supported_format->read_format_desc(stream);
+        
+        if (supported_format->is_valid) {
+            format = supported_format;
+
+            result.status = evp_result_status::ok;
+            return result;
+        }
+    }
+
+    return result;
+}
 
 evp_result verify_pack_paths(const std::filesystem::path& input, const std::filesystem::path& output) {
     evp_result result;

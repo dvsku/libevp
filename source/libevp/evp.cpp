@@ -34,7 +34,9 @@ static evp_result read_structure(stream_read& stream, libevp::format::format::pt
 static evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format);
 
 static evp_result verify_pack_paths(const std::filesystem::path& input, const std::filesystem::path& output);
-static evp_result verify_unpack_paths(const std::filesystem::path& input, const std::filesystem::path& output);
+
+static evp_result validate_evp_archive(const std::filesystem::path& input);
+static evp_result validate_directory(const std::filesystem::path& input);
 
 static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
 
@@ -316,42 +318,57 @@ evp_result verify_pack_paths(const std::filesystem::path& input, const std::file
     return result;
 }
 
-evp_result verify_unpack_paths(const std::filesystem::path& input, const std::filesystem::path& output) {
+evp_result validate_evp_archive(const std::filesystem::path& input) {
     evp_result result;
     result.status = evp_result_status::error;
 
     try {
-        if (!std::filesystem::exists(output)) {
-            result.message = "Output directory doesn't exist.";
+        if (!std::filesystem::exists(input)) {
+            result.message = ".evp file not found.";
             return result;
         }
 
-        if (!std::filesystem::is_directory(output)) {
-            result.message = "Output has to be a directory.";
-            return result;
-        }
-
-        if (std::filesystem::is_directory(input)) {
-            result.message = "Input cannot be a directory.";
+        if (!std::filesystem::is_regular_file(input)) {
+            result.message = "Not a file.";
             return result;
         }
 
         if (!input.has_filename()) {
-            result.message = "Input must be a file with .evp extension.";
+            result.message = "Not a file with .evp extension.";
             return result;
         }
 
         if (!input.has_extension() || input.extension() != ".evp") {
-            result.message = "Input extension must be .evp.";
+            result.message = "Not a file with .evp extension.";
             return result;
         }
     }
-    catch (const std::exception& ex) {
-        result.message = ex.what();
+    catch (const std::exception& e) {
+        result.message = e.what();
         return result;
     }
-    catch (...) {
-        result.message = "Critical fail.";
+
+    result.status = evp_result_status::ok;
+    return result;
+}
+
+evp_result validate_directory(const std::filesystem::path& input) {
+    evp_result result;
+    result.status = evp_result_status::error;
+
+    try {
+        if (!std::filesystem::exists(input)) {
+            result.message = "Directory not found.";
+            return result;
+        }
+
+        if (!std::filesystem::is_directory(input)) {
+            result.message = "Not a directory.";
+            return result;
+        }
+    }
+    catch (const std::exception& e) {
+        result.message = e.what();
         return result;
     }
 

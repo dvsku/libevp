@@ -24,6 +24,11 @@ struct file_desc {
 };
 
 /*
+    Determines format and reads file descriptors.
+*/
+static evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& format);
+
+/*
     Determine archive format.
 */
 static evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format);
@@ -216,6 +221,33 @@ std::vector<evp::file_path_t> evp::get_filtered_files(const dir_path_t& input, e
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
+
+evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& format) {
+    evp_result result;
+    result.status = evp_result_status::error;
+
+    try {
+        auto res = determine_format(stream, format);
+        if (!res) {
+            result.message = res.message;
+            return result;
+        }
+
+        if (!format) {
+            result.message = "`format` is null.";
+            return result;
+        }
+
+        format->read_file_desc_block(stream);
+    }
+    catch (const std::exception& e) {
+        result.message = e.what();
+        return result;
+    }
+
+    result.status = evp_result_status::ok;
+    return result;
+}
 
 evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format) {
     evp_result result;

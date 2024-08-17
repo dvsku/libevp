@@ -1,5 +1,7 @@
 #pragma once
 
+#include "libevp/type_traits.hpp"
+
 #include <string>
 #include <memory>
 #include <fstream>
@@ -13,7 +15,7 @@ namespace libevp {
         stream_read(const stream_read&) = delete;
         stream_read(stream_read&&)      = default;
 
-        stream_read(const std::string& file) {
+        stream_read(const std::filesystem::path& file) {
             if (!std::filesystem::exists(file))
                 return;
             
@@ -45,48 +47,44 @@ namespace libevp {
         }
 
         void seek(size_t offset, std::ios_base::seekdir dir = std::ios_base::cur) {
-            if (m_pos + offset > m_size)
+            if (!m_stream->seekg(offset, dir))
                 throw std::out_of_range("Tried to seek outside file bounds.");
 
-            m_stream->seekg(offset, dir);
             m_pos = static_cast<size_t>(m_stream->tellg());
         }
 
         template<typename T>
-        T read_num() {
-            if (m_pos + sizeof(T) > m_size)
-                throw std::out_of_range("Tried to read outside file bounds.");
-
+        requires arithmetic<T>
+        T read() {
             T value{};
-            m_stream->read((char*)&value, sizeof(T));
-            m_pos = static_cast<size_t>(m_stream->tellg());
-
+            internal_read(&value, sizeof(T));
             return value;
         }
 
-        std::string read_str(std::size_t len) {
-            if (m_pos + len > m_size)
-                throw std::out_of_range("Tried to read outside file bounds.");
-
-            std::string value(len, 0);
-
-            m_stream->read(value.data(), len);
-            m_pos = static_cast<size_t>(m_stream->tellg());
-
+        std::string read(uint32_t size) {
+            std::string value(size, 0);
+            internal_read(value.data(), size);
             return value;
         }
 
-        void read_bytes(uint8_t* dst, size_t size) {
-            if (m_pos + size > m_size)
-                throw std::out_of_range("Tried to read outside file bounds.");
-
-            m_stream->read((char*)dst, size);
-            m_pos = static_cast<size_t>(m_stream->tellg());
+        void read(uint8_t* dst, uint32_t size) {
+            internal_read(dst, size);
         }
 
     private:
         std::unique_ptr<std::ifstream> m_stream;
         size_t                         m_size = 0U;
         size_t                         m_pos  = 0U;
+
+    private:
+        void internal_read(void* dst, uint32_t size) {
+            if (m_pos + size > m_size)
+                throw std::out_of_range("Tried to read outside file bounds.");
+
+            if (!m_stream->read((char*)dst, (size_t)size))
+                throw std::runtime_error("Failed to read requested size.");
+
+            m_pos = static_cast<size_t>(m_stream->tellg());
+        }
     };
 }

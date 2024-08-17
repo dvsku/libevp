@@ -14,6 +14,8 @@
 
 using namespace libevp;
 
+constexpr uint32_t EVP_READ_BUFFER_SIZE = 1024 * 1024;
+
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
@@ -594,17 +596,21 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         return result;
     }
 
+    res = validate_directory(output_dir);
+    if (!res) {
+        result.message = res.message;
+
+        if (context)
+            context->invoke_finish(result);
+
+        return result;
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // UNPACK
 
-    uint32_t data_block_end   = 0;
-    uint32_t names_block_size = 0;
-    uint64_t file_count       = 0;
-
-    std::ifstream fin;
-    fin.open(input, std::ios::binary);
-
-    if (!fin.is_open()) {
+    stream_read stream(input.string());
+    if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
         if (context)
@@ -613,89 +619,77 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         return result;
     }
 
-    fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
+    format::format::ptr_t format;
+    res = read_structure(stream, format);
+    if (!res) {
+        result.message = res.message;
 
-    fin.read((char*)&data_block_end,   sizeof(uint32_t));
-    fin.read((char*)&names_block_size, sizeof(uint32_t));
-    fin.read((char*)&file_count,       sizeof(uint64_t));
+        if (context)
+            context->invoke_finish(result);
 
-    float prog_change = 100.0f / file_count;
+        return result;
+    }
 
-    uint32_t curr_name_block_offset = data_block_end + 16;
-    uint32_t curr_data_block_offset = v1::DATA_START_OFFSET;
+    float prog_change = 100.0f / format->file_count;
 
     if (context)
         context->invoke_start();
 
-    for (uint64_t i = 0; i < file_count; i++) {
-        if (context && context->invoke_cancel()) {
-            result.status = evp_result_status::cancelled;
+    try {
+        std::vector<uint8_t> buffer{};
+        buffer.resize(EVP_READ_BUFFER_SIZE);
+
+        for (evp_fd& fd : format->desc_block->files) {
+            if (context && context->invoke_cancel()) {
+                result.status = evp_result_status::cancelled;
+
+                if (context)
+                    context->invoke_finish(result);
+
+                return result;
+            }
+            
+            std::filesystem::path dir_path(output);
+            dir_path /= fd.file;
+            dir_path.remove_filename();
+
+            std::filesystem::path file_path(output);
+            file_path /= fd.file;
+
+            if (!std::filesystem::is_directory(dir_path)) {
+                std::filesystem::create_directories(dir_path);
+                std::filesystem::permissions(dir_path, std::filesystem::perms::all);
+            }
+
+            stream_write out_stream(file_path);
+            if (!out_stream.is_valid()) {
+                result.message = "Failed to open file.";
+                return result;
+            }
+
+            stream.seek(fd.data_offset, std::ios::beg);
+            
+            uint32_t left_to_read = fd.data_size;
+            while (left_to_read > 0) {
+                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_READ_BUFFER_SIZE);
+
+                stream.read(buffer.data(), read_count);
+                out_stream.write(buffer.data(), read_count);
+
+                left_to_read -= read_count;
+            }
 
             if (context)
-                context->invoke_finish(result);
-
-            return result;
+                context->invoke_update(prog_change);
         }
-
-        file_desc output_file;
-
-        // go to curr name block pos
-        fin.seekg(curr_name_block_offset, std::ios_base::beg);
-
-        // get path size
-        fin.read((char*)&output_file.path_size, sizeof(uint32_t));
-        output_file.path.resize(output_file.path_size);
-
-        curr_name_block_offset += sizeof(uint32_t);
-
-        // get file path
-        fin.read(&output_file.path[0], output_file.path_size);
-        curr_name_block_offset += output_file.path_size + sizeof(uint32_t);
-
-        std::replace(output_file.path.begin(), output_file.path.end(), '\\', '/');
-
-        fin.seekg(sizeof(uint32_t), std::ios_base::cur);
-
-        // get data size
-        fin.read((char*)&output_file.data_size, sizeof(uint32_t));
-        output_file.data.resize(output_file.data_size);
-
-        // go to curr data block pos
-        fin.seekg(curr_data_block_offset, std::ios_base::beg);
-        fin.read((char*)output_file.data.data(), output_file.data_size);
-
-        curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
-        curr_data_block_offset += output_file.data_size;
-
-        std::filesystem::path dir_path(output);
-        dir_path /= output_file.path;
-        dir_path.remove_filename();
-
-        std::filesystem::path full_path(output);
-        full_path /= output_file.path;
-
-        if (!std::filesystem::is_directory(dir_path)) {
-            std::filesystem::create_directories(dir_path);
-            std::filesystem::permissions(dir_path, std::filesystem::perms::all);
-        }
-
-        std::ofstream fout;
-        fout.open(full_path, std::ios::binary);
-
-        if (!fout.is_open()) {
-            result.message = "Failed to write `" + output_file.path + "` file.";
-
-            if (context)
-                context->invoke_finish(result);
-
-            return result;
-        }
-
-        fout.write((char*)output_file.data.data(), output_file.data.size());
-        fout.close();
+    }
+    catch (const std::exception& e) {
+        result.message = e.what();
 
         if (context)
-            context->invoke_update(prog_change);
+            context->invoke_finish(result);
+
+        return result;
     }
 
     result.status = evp_result_status::ok;

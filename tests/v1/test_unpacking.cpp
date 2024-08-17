@@ -47,13 +47,13 @@ TEST(unpacking, v1_unpacking) {
 
     auto r1 = evp.unpack(input, output);
 
-    EXPECT_TRUE(r1.status == evp_result_status::ok);
-    EXPECT_TRUE(compare_files(output_file, valid));
+    ASSERT_TRUE(r1.status == evp_result_status::ok);
+    ASSERT_TRUE(compare_files(output_file, valid));
 
     std::filesystem::remove_all(output);
 }
 
-TEST(unpacking, v1_get_file_from_evp) {
+TEST(unpacking, v1_get_file) {
     evp evp;
 
     std::string input = BASE_PATH + std::string("/tests/v1/resources/multiple_files.evp");
@@ -61,17 +61,17 @@ TEST(unpacking, v1_get_file_from_evp) {
 
     std::vector<uint8_t> buffer;
 
-    auto r1 = evp.get_file_from_evp(input, "text_1.txt", buffer);
-    EXPECT_TRUE(r1.status == evp_result_status::ok);
+    auto r1 = evp.get_file(input, "text_1.txt", buffer);
+    ASSERT_TRUE(r1.status == evp_result_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
-    EXPECT_TRUE(stream.is_open());
+    ASSERT_TRUE(stream.is_open());
 
     std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
-    EXPECT_TRUE(compare_buffers(buffer, contents));
+    ASSERT_TRUE(compare_buffers(buffer, contents));
 }
 
-TEST(unpacking, v1_get_file_from_evp_stream) {
+TEST(unpacking, v1_get_file_stream) {
     evp evp;
 
     std::string input = BASE_PATH + std::string("/tests/v1/resources/multiple_files.evp");
@@ -79,14 +79,14 @@ TEST(unpacking, v1_get_file_from_evp_stream) {
 
     std::stringstream ss;
 
-    auto r1 = evp.get_file_from_evp(input, "text_1.txt", ss);
-    EXPECT_TRUE(r1.status == evp_result_status::ok);
+    auto r1 = evp.get_file(input, "text_1.txt", ss);
+    ASSERT_TRUE(r1.status == evp_result_status::ok);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
-    EXPECT_TRUE(stream.is_open());
+    ASSERT_TRUE(stream.is_open());
 
     std::vector<uint8_t> buffer((std::istreambuf_iterator<char>(ss)), std::istreambuf_iterator<char>());
     std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
 
-    EXPECT_TRUE(compare_buffers(buffer, contents));
+    ASSERT_TRUE(compare_buffers(buffer, contents));
 }

@@ -1,6 +1,9 @@
 #include "libevp/evp.hpp"
 #include "libevp/utilities/filtering.hpp"
-#include "libevp/versions/formats.hpp"
+#include "libevp/format/format.hpp"
+#include "libevp/format/supported_formats.hpp"
+#include "libevp/stream/stream_read.hpp"
+#include "libevp/stream/stream_write.hpp"
 #include "md5/md5.hpp"
 
 #include <thread>
@@ -78,137 +81,136 @@ void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp
     t.detach();
 }
 
-std::vector<evp::file_path_t> evp::get_evp_file_list(const file_path_t& evp) {
-    std::vector<evp::file_path_t> results;
-
-    std::ifstream fin;
-    fin.open(evp, std::ios::binary);
-
-    if (!fin.is_open())
-        return results;
-
-    uint32_t data_block_end   = 0;
-    uint32_t names_block_size = 0;
-    uint64_t file_count       = 0;
-
-    fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
-
-    fin.read((char*)&data_block_end,   sizeof(uint32_t));
-    fin.read((char*)&names_block_size, sizeof(uint32_t));
-    fin.read((char*)&file_count,       sizeof(uint64_t));
-
-    uint32_t curr_name_block_offset = data_block_end + 16;
-
-    for (uint64_t i = 0; i < file_count; i++) {
-        uint32_t    path_size = 0;
-        std::string path      = "";
-
-        // go to curr name block pos
-        fin.seekg(curr_name_block_offset, std::ios_base::beg);
-
-        // get path size
-        fin.read((char*)&path_size, sizeof(uint32_t));
-        path.resize(path_size);
-
-        curr_name_block_offset += sizeof(uint32_t);
-
-        // get file path
-        fin.read(&path[0], path_size);
-        curr_name_block_offset += path_size + sizeof(uint32_t);
-
-        std::replace(path.begin(), path.end(), '\\', '/');
-
-        results.push_back(std::filesystem::path(path));
-
-        curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
-    }
-
-    fin.close();
-
-    return results;
-}
-
-evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer, evp_context* context) {
-    evp_result result;
+evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
+    evp_result result, res;
     result.status = evp_result_status::error;
 
-    std::ifstream fin;
-    fin.open(evp, std::ios::binary);
-
-    if (!fin.is_open()) {
-        result.message = "Failed to open evp file.";
+    res = validate_evp_archive(evp);
+    if (!res) {
+        result.message = res.message;
         return result;
     }
 
-    uint32_t data_block_end   = 0;
-    uint32_t names_block_size = 0;
-    uint64_t file_count       = 0;
+    stream_read stream(evp);
+    if (!stream.is_valid()) {
+        result.message = "Failed to open file.";
+        return result;
+    }
 
-    fin.seekg(v1::HEADER_END_OFFSET, std::ios_base::beg);
+    format::format::ptr_t format;
+    res = read_structure(stream, format);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
 
-    fin.read((char*)&data_block_end,   sizeof(uint32_t));
-    fin.read((char*)&names_block_size, sizeof(uint32_t));
-    fin.read((char*)&file_count,       sizeof(uint64_t));
+    for (auto& file : format->desc_block->files) {
+        files.push_back(file);
+    }
 
-    uint32_t curr_name_block_offset = data_block_end + 16;
+    result.status = evp_result_status::ok;
+    return result;
+}
 
-    bool found = false;
-    for (uint64_t i = 0; i < file_count; i++) {
-        file_desc current_file;
+evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<uint8_t>& buffer) {
+    evp_result result, res;
+    result.status = evp_result_status::error;
 
-        // go to curr name block pos
-        fin.seekg(curr_name_block_offset, std::ios_base::beg);
+    res = validate_evp_archive(evp);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
 
-        // get path size
-        fin.read((char*)&current_file.path_size, sizeof(uint32_t));
-        current_file.path.resize(current_file.path_size);
+    stream_read stream(evp.string());
+    if (!stream.is_valid()) {
+        result.message = "Failed to open file.";
+        return result;
+    }
 
-        curr_name_block_offset += sizeof(uint32_t);
+    try {
+        buffer.resize(fd.data_size);
+        
+        stream.seek(fd.data_offset, std::ios::beg);
+        stream.read(buffer.data(), fd.data_size);
+    }
+    catch (const std::exception& e) {
+        result.message = e.what();
+        return result;
+    }
 
-        // get file path
-        fin.read(&current_file.path[0], current_file.path_size);
-        curr_name_block_offset += current_file.path_size;
+    result.status = evp_result_status::ok;
+    return result;
+}
 
-        // get file data start offset
-        fin.read((char*)&current_file.data_start_offset, sizeof(uint32_t));
-        curr_name_block_offset += sizeof(uint32_t);
+evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::stringstream& stream) {
+    std::vector<uint8_t> buffer;
 
-        std::replace(current_file.path.begin(), current_file.path.end(), '\\', '/');
+    auto result = get_file(evp, fd, buffer);
+    if (!result)
+        return result;
 
-        fin.seekg(sizeof(uint32_t), std::ios_base::cur);
+    std::move(buffer.begin(), buffer.end(), std::ostream_iterator<unsigned char>(stream));
 
-        // get data size
-        fin.read((char*)&current_file.data_size, sizeof(uint32_t));
+    return result;
+}
 
-        if (current_file.path == file.generic_string()) {
-            buffer.resize(current_file.data_size);
+evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer) {
+    evp_result result, res;
+    result.status = evp_result_status::error;
+    
+    res = validate_evp_archive(evp);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
 
-            // go to curr data block pos
-            fin.seekg(current_file.data_start_offset, std::ios_base::beg);
-            fin.read((char*)buffer.data(), current_file.data_size);
+    stream_read stream(evp.string());
+    if (!stream.is_valid()) {
+        result.message = "Failed to open file.";
+        return result;
+    }
+
+    format::format::ptr_t format;
+    res = read_structure(stream, format);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
+
+    try {
+        bool found = false;
+
+        for (evp_fd& fd : format->desc_block->files) {
+            if (fd.file != file) continue;
+
+            buffer.resize(fd.data_size);
+
+            stream.seek(fd.data_offset, std::ios::beg);
+            stream.read(buffer.data(), fd.data_size);
 
             found = true;
-            break;
         }
 
-        curr_name_block_offset += v1::GAP_BETWEEN_FILE_DESC;
+        if (found) {
+            result.status = evp_result_status::ok;
+        }
+        else {
+            result.message = "File not found.";
+        }
     }
-
-    if (found) {
-        result.status = evp_result_status::ok;
-    }
-    else {
-        result.status  = evp_result_status::error;
-        result.message = "File not found.";
+    catch (const std::exception& e) {
+        result.message = e.what();
+        return result;
     }
 
     return result;
 }
 
-evp_result evp::get_file_from_evp(const file_path_t& evp, const file_path_t& file, std::stringstream& stream, evp_context* context) {
+evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream) {
     std::vector<uint8_t> buffer;
 
-    auto result = get_file_from_evp(evp, file, buffer);
+    auto result = get_file(evp, file, buffer);
     if (!result)
         return result;
 
@@ -567,8 +569,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::filesystem::path& output_dir,
     evp_context* context)
 {
-    evp_result result;
-    evp_result res;
+    evp_result result, res;
     result.status = evp_result_status::error;
 
     ///////////////////////////////////////////////////////////////////////////
@@ -583,7 +584,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!output.is_absolute())
         output = std::filesystem::absolute(output);
 
-    res = verify_unpack_paths(evp, output_dir);
+    res = validate_evp_archive(evp);
     if (!res) {
         result.message = res.message;
 

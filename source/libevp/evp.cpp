@@ -51,6 +51,8 @@ static evp_result validate_directory(const std::filesystem::path& input);
 static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
 
 static void serialize_file_desc(const file_desc& file_desc, std::vector<uint8_t>& buffer);
+///////////////////////////////////////////////////////////////////////////////
+// EVP IMPL
 
 namespace libevp {
     class evp_impl {
@@ -364,12 +366,13 @@ void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>&
     buffer.insert(buffer.end(), 11, 0);
     buffer.insert(buffer.end(), file_desc.data_hash.data(), file_desc.data_hash.data() + file_desc.data_hash.size());
 }
+///////////////////////////////////////////////////////////////////////////////
+// EVP IMPL
 
 evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
     evp_filter filter, evp_context* context)
 {
-    evp_result result;
-    evp_result res;
+    evp_result result, res;
     result.status = evp_result_status::error;
 
     ///////////////////////////////////////////////////////////////////////////
@@ -384,7 +387,17 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     if (!output.is_absolute())
         output = std::filesystem::absolute(output);
 
-    res = verify_pack_paths(input, output);
+    res = validate_directory(input);
+    if (!res) {
+        result.message = res.message;
+
+        if (context)
+            context->invoke_finish(result);
+
+        return result;
+    }
+
+    res = validate_evp_archive(output, false);
     if (!res) {
         result.message = res.message;
 
@@ -397,22 +410,10 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     ///////////////////////////////////////////////////////////////////////////
     // PACK
 
-    std::vector<file_desc> input_files;
-    uint32_t curr_data_offset = v1::DATA_START_OFFSET;
-    uint32_t footer_size      = 0;
+    format::v1::format format;
 
-    auto files = filtering::get_filtered_paths(input, filter);
-
-    float prog_change_x = 90.0f / files.size();
-    float prog_change_y = 10.0f / files.size();
-
-    if (context)
-        context->invoke_start();
-
-    std::ofstream fout;
-    fout.open(output, std::ios::binary);
-
-    if (!fout.is_open()) {
+    stream_write stream(output);
+    if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
         if (context)
@@ -421,108 +422,104 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         return result;
     }
 
-    fout.write(v1::format_desc::HEADER,   sizeof(v1::format_desc::HEADER));
-    fout.write(v1::format_desc::RESERVED, sizeof(v1::format_desc::RESERVED));
+    auto  files       = filtering::get_filtered_paths(input, filter);
+    float prog_change = 100.0f / files.size();
 
-    for (auto& filename : files) {
-        if (context && context->invoke_cancel()) {
-            result.status = evp_result_status::cancelled;
+    if (context)
+        context->invoke_start();
+
+    try {
+        std::vector<uint8_t> buffer{};
+        buffer.resize(EVP_BUFFER_SIZE);
+
+        format.write_format_desc(stream);
+
+        for (auto& filename : files) {
+            if (context && context->invoke_cancel()) {
+                result.status = evp_result_status::cancelled;
+
+                if (context)
+                    context->invoke_finish(result);
+
+                return result;
+            }
+
+            stream_read read_stream(filename);
+            if (!read_stream.is_valid()) {
+                result.message = "Failed to open file.";
+
+                if (context)
+                    context->invoke_finish(result);
+
+                return result;
+            }
+
+            evp_fd fd;
+            fd.file        = filename.string();
+            fd.data_offset = (uint32_t)stream.pos();
+            fd.data_size   = (uint32_t)read_stream.size();
+
+            {
+                std::string base = input.string();
+
+                // convert to relative
+                size_t start_index = fd.file.find(base);
+                fd.file.erase(start_index, base.size());
+
+                // swap slash direction
+                std::replace(fd.file.begin(), fd.file.end(), '/', '\\');
+
+                // remove leading slash
+                if (fd.file[0] == '\\')
+                    fd.file.erase(0, 1);
+            }
+
+            MD5      md5;
+            uint32_t left_to_read = fd.data_size;
+
+            while (left_to_read > 0) {
+                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
+
+                read_stream.read(buffer.data(), read_count);
+                auto pos = stream.pos();
+                stream.write(buffer.data(), read_count);
+
+                md5.add(buffer.data(), read_count);
+
+                left_to_read -= read_count;
+            }
+
+            {
+                std::string hex_bytes = md5.getHash();
+
+                for (size_t i = 0; i < hex_bytes.size(); i += 2) {
+                    uint8_t high = std::isdigit(hex_bytes[i])     ? (hex_bytes[i]     - '0') : (std::toupper(hex_bytes[i])     - 'A' + 10);
+                    uint8_t low  = std::isdigit(hex_bytes[i + 1]) ? (hex_bytes[i + 1] - '0') : (std::toupper(hex_bytes[i + 1]) - 'A' + 10);
+
+                    fd.hash[i / 2] = (high << 4) | low;
+                }
+            }
+
+            format.desc_block->files.push_back(fd);
 
             if (context)
-                context->invoke_finish(result);
-
-            return result;
+                context->invoke_update(prog_change);
         }
 
-        file_desc input_file;
-
-        // save file path
-        input_file.path = filename.generic_string();
-
-        // get file content
-        std::ifstream input_stream(filename, std::ios::binary);
-
-        if (!input_stream.is_open()) {
-            result.message = "Failed to open `" + input_file.path + "`.";
-
-            if (context)
-                context->invoke_finish(result);
-
-            return result;
-        }
-
-        input_file.data = std::vector<unsigned char>((std::istreambuf_iterator<char>(input_stream)), (std::istreambuf_iterator<char>()));
-        input_stream.close();
-
-        // save content size
-        input_file.data_size = (uint32_t)input_file.data.size();
-
-        // hash file content
-        input_file.data_hash = compute_md5(input_file.data.data(), input_file.data_size);
-
-        fout.write((char*)input_file.data.data(), input_file.data_size);
-
-        // free data
-        input_file.data.clear();
-        input_file.data.shrink_to_fit();
-
-        // set offset
-        input_file.data_start_offset = curr_data_offset;
-
-        input_files.push_back(input_file);
-
-        curr_data_offset += input_file.data_size;
+        format.file_desc_block_offset = (uint32_t)stream.pos();
+        format.file_count             = (uint64_t)format.desc_block->files.size();
+        
+        format.write_file_desc_block(stream);
+        format.write_format_desc(stream);
+    }
+    catch (const std::exception& e) {
+        result.message = e.what();
 
         if (context)
-            context->invoke_update(prog_change_x);
+            context->invoke_finish(result);
+
+        return result;
     }
-
-    fout.write(v1::format_desc::RESERVED, sizeof(v1::format_desc::RESERVED));
-
-    for (auto& input_file : input_files) {
-        if (context && context->invoke_cancel()) {
-            result.status = evp_result_status::cancelled;
-
-            if (context)
-                context->invoke_finish(result);
-
-            return result;
-        }
-
-        // get path relative to input path
-        size_t start_index = input_file.path.find(input.generic_string());
-        input_file.path.erase(start_index, input.generic_string().size());
-
-        // swap slash directions
-        std::replace(input_file.path.begin(), input_file.path.end(), '/', '\\');
-
-        // remove leading slash
-        if (input_file.path[0] == '\\')
-            input_file.path.erase(0, 1);
-
-        // save path size
-        input_file.path_size = (uint32_t)input_file.path.size();
-
-        // pack file desc
-        std::vector<uint8_t> file_desc_bytes;
-        serialize_file_desc(input_file, file_desc_bytes);
-
-        fout.write((char*)file_desc_bytes.data(), file_desc_bytes.size());
-
-        footer_size += (uint32_t)file_desc_bytes.size();
-
-        if (context)
-            context->invoke_update(prog_change_y);
-    }
-
-    uint64_t num_files = input_files.size();
-
-    fout.seekp(v1::HEADER_END_OFFSET, std::ios_base::beg);
-
-    fout.write((char*)&curr_data_offset, sizeof(uint32_t));
-    fout.write((char*)&footer_size,      sizeof(uint32_t));
-    fout.write((char*)&num_files,        sizeof(uint64_t));
-    fout.close();
 
     result.status = evp_result_status::ok;
 

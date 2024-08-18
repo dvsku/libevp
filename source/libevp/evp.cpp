@@ -14,7 +14,7 @@
 
 using namespace libevp;
 
-constexpr uint32_t EVP_READ_BUFFER_SIZE = 1024 * 1024;
+constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
@@ -601,7 +601,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
 
     try {
         std::vector<uint8_t> buffer{};
-        buffer.resize(EVP_READ_BUFFER_SIZE);
+        buffer.resize(EVP_BUFFER_SIZE);
 
         for (evp_fd& fd : format->desc_block->files) {
             if (context && context->invoke_cancel()) {
@@ -635,7 +635,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
             
             uint32_t left_to_read = fd.data_size;
             while (left_to_read > 0) {
-                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_READ_BUFFER_SIZE);
+                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
 
                 stream.read(buffer.data(), read_count);
                 out_stream.write(buffer.data(), read_count);

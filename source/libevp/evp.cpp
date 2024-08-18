@@ -38,9 +38,14 @@ static evp_result read_structure(stream_read& stream, libevp::format::format::pt
 */
 static evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format);
 
-static evp_result verify_pack_paths(const std::filesystem::path& input, const std::filesystem::path& output);
+/*
+    Validate that input is an EVP archive.
+*/
+static evp_result validate_evp_archive(const std::filesystem::path& input, bool existing);
 
-static evp_result validate_evp_archive(const std::filesystem::path& input);
+/*
+    Validate that input is a directory.
+*/
 static evp_result validate_directory(const std::filesystem::path& input);
 
 static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
@@ -87,7 +92,7 @@ evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
     evp_result result, res;
     result.status = evp_result_status::error;
 
-    res = validate_evp_archive(evp);
+    res = validate_evp_archive(evp, true);
     if (!res) {
         result.message = res.message;
         return result;
@@ -118,7 +123,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<u
     evp_result result, res;
     result.status = evp_result_status::error;
 
-    res = validate_evp_archive(evp);
+    res = validate_evp_archive(evp, true);
     if (!res) {
         result.message = res.message;
         return result;
@@ -161,7 +166,7 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::v
     evp_result result, res;
     result.status = evp_result_status::error;
     
-    res = validate_evp_archive(evp);
+    res = validate_evp_archive(evp, true);
     if (!res) {
         result.message = res.message;
         return result;
@@ -279,62 +284,21 @@ evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format:
     return result;
 }
 
-evp_result verify_pack_paths(const std::filesystem::path& input, const std::filesystem::path& output) {
+evp_result validate_evp_archive(const std::filesystem::path& input, bool existing) {
     evp_result result;
     result.status = evp_result_status::error;
 
     try {
-        if (!std::filesystem::exists(input)) {
-            result.message = "Input directory doesn't exist.";
-            return result;
-        }
+        if (existing) {
+            if (!std::filesystem::exists(input)) {
+                result.message = ".evp file not found.";
+                return result;
+            }
 
-        if (!std::filesystem::is_directory(input)) {
-            result.message = "Input has to be a directory.";
-            return result;
-        }
-
-        if (std::filesystem::is_directory(output)) {
-            result.message = "Output cannot be a directory.";
-            return result;
-        }
-
-        if (!output.has_filename()) {
-            result.message = "Output must be a file with .evp extension.";
-            return result;
-        }
-
-        if (!output.has_extension() || output.extension() != ".evp") {
-            result.message = "Output extension must be .evp.";
-            return result;
-        }
-    }
-    catch (const std::exception& ex) {
-        result.message = ex.what();
-        return result;
-    }
-    catch (...) {
-        result.message = "Critical fail.";
-        return result;
-    }
-
-    result.status = evp_result_status::ok;
-    return result;
-}
-
-evp_result validate_evp_archive(const std::filesystem::path& input) {
-    evp_result result;
-    result.status = evp_result_status::error;
-
-    try {
-        if (!std::filesystem::exists(input)) {
-            result.message = ".evp file not found.";
-            return result;
-        }
-
-        if (!std::filesystem::is_regular_file(input)) {
-            result.message = "Not a file.";
-            return result;
+            if (!std::filesystem::is_regular_file(input)) {
+                result.message = "Not a file.";
+                return result;
+            }
         }
 
         if (!input.has_filename()) {
@@ -586,7 +550,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!output.is_absolute())
         output = std::filesystem::absolute(output);
 
-    res = validate_evp_archive(evp);
+    res = validate_evp_archive(evp, true);
     if (!res) {
         result.message = res.message;
 

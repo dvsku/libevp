@@ -55,19 +55,47 @@ namespace libevp {
 // PUBLIC
 
 evp_result evp::pack(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter) {
-    evp_context_internal context_internal(nullptr);
-    return evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+    try {
+        evp_context_internal context_internal(nullptr);
+        return evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+    }
+    catch (const std::exception& e) {
+        evp_result result;
+        result.status  = evp_result_status::error;
+        result.message = e.what();
+
+        return result;
+    }
 }
 
 evp_result evp::unpack(const file_path_t& evp, const dir_path_t& output_dir) {
-    evp_context_internal context_internal(nullptr);
-    return evp_impl::unpack_impl(evp, output_dir, context_internal);
+    try {
+        evp_context_internal context_internal(nullptr);
+        return evp_impl::unpack_impl(evp, output_dir, context_internal);
+    }
+    catch (const std::exception& e) {
+        evp_result result;
+        result.status  = evp_result_status::error;
+        result.message = e.what();
+
+        return result;
+    }
 }
 
 void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter, evp_context* context) {
     std::thread t([input_dir, evp, filter, context] {
         evp_context_internal context_internal(context);
-        evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+
+        try {
+            evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+        }
+        catch (const std::exception& e) {
+            evp_result result;
+            result.status  = evp_result_status::error;
+            result.message = e.what();
+
+            context_internal.invoke_finish(result);
+        }
     });
     t.detach();
 }
@@ -75,7 +103,17 @@ void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_fi
 void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context) {
     std::thread t([evp, output_dir, context] {
         evp_context_internal context_internal(context);
-        evp_impl::unpack_impl(evp, output_dir, context_internal);
+
+        try {
+            evp_impl::unpack_impl(evp, output_dir, context_internal);
+        }
+        catch (const std::exception& e) {
+            evp_result result;
+            result.status  = evp_result_status::error;
+            result.message = e.what();
+
+            context_internal.invoke_finish(result);
+        }
     });
     t.detach();
 }
@@ -391,91 +429,83 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
     context.invoke_start();
 
-    try {
-        std::vector<uint8_t> buffer{};
-        buffer.resize(EVP_BUFFER_SIZE);
+    std::vector<uint8_t> buffer{};
+    buffer.resize(EVP_BUFFER_SIZE);
 
-        format.write_format_desc(stream);
+    format.write_format_desc(stream);
 
-        for (auto& filename : files) {
-            if (context.is_cancelled()) {
-                context.invoke_cancel();
+    for (auto& filename : files) {
+        if (context.is_cancelled()) {
+            context.invoke_cancel();
 
-                result.status = evp_result_status::cancelled;
-                return result;
-            }
-
-            stream_read read_stream(filename);
-            if (!read_stream.is_valid()) {
-                result.message = "Failed to open file.";
-
-                context.invoke_finish(result);
-                return result;
-            }
-
-            evp_fd fd;
-            fd.file        = filename.string();
-            fd.data_offset = (uint32_t)stream.pos();
-            fd.data_size   = (uint32_t)read_stream.size();
-
-            {
-                std::string base = input.string();
-
-                // convert to relative
-                size_t start_index = fd.file.find(base);
-                fd.file.erase(start_index, base.size());
-
-                // swap slash direction
-                std::replace(fd.file.begin(), fd.file.end(), '/', '\\');
-
-                // remove leading slash
-                if (fd.file[0] == '\\')
-                    fd.file.erase(0, 1);
-            }
-
-            MD5      md5;
-            uint32_t left_to_read = fd.data_size;
-
-            while (left_to_read > 0) {
-                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
-
-                read_stream.read(buffer.data(), read_count);
-                auto pos = stream.pos();
-                stream.write(buffer.data(), read_count);
-
-                md5.add(buffer.data(), read_count);
-
-                left_to_read -= read_count;
-            }
-
-            {
-                std::string hex_bytes = md5.getHash();
-
-                for (size_t i = 0; i < hex_bytes.size(); i += 2) {
-                    uint8_t high = std::isdigit(hex_bytes[i])     ? (hex_bytes[i]     - '0') : (std::toupper(hex_bytes[i])     - 'A' + 10);
-                    uint8_t low  = std::isdigit(hex_bytes[i + 1]) ? (hex_bytes[i + 1] - '0') : (std::toupper(hex_bytes[i + 1]) - 'A' + 10);
-
-                    fd.hash[i / 2] = (high << 4) | low;
-                }
-            }
-
-            format.desc_block->files.push_back(fd);
-
-            context.invoke_update(prog_change);
+            result.status = evp_result_status::cancelled;
+            return result;
         }
 
-        format.file_desc_block_offset = (uint32_t)stream.pos();
-        format.file_count             = (uint64_t)format.desc_block->files.size();
-        
-        format.write_file_desc_block(stream);
-        format.write_format_desc(stream);
-    }
-    catch (const std::exception& e) {
-        result.message = e.what();
+        stream_read read_stream(filename);
+        if (!read_stream.is_valid()) {
+            result.message = "Failed to open file.";
 
-        context.invoke_finish(result);
-        return result;
+            context.invoke_finish(result);
+            return result;
+        }
+
+        evp_fd fd;
+        fd.file        = filename.string();
+        fd.data_offset = (uint32_t)stream.pos();
+        fd.data_size   = (uint32_t)read_stream.size();
+
+        {
+            std::string base = input.string();
+
+            // convert to relative
+            size_t start_index = fd.file.find(base);
+            fd.file.erase(start_index, base.size());
+
+            // swap slash direction
+            std::replace(fd.file.begin(), fd.file.end(), '/', '\\');
+
+            // remove leading slash
+            if (fd.file[0] == '\\')
+                fd.file.erase(0, 1);
+        }
+
+        MD5      md5;
+        uint32_t left_to_read = fd.data_size;
+
+        while (left_to_read > 0) {
+            uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
+
+            read_stream.read(buffer.data(), read_count);
+            auto pos = stream.pos();
+            stream.write(buffer.data(), read_count);
+
+            md5.add(buffer.data(), read_count);
+
+            left_to_read -= read_count;
+        }
+
+        {
+            std::string hex_bytes = md5.getHash();
+
+            for (size_t i = 0; i < hex_bytes.size(); i += 2) {
+                uint8_t high = std::isdigit(hex_bytes[i])     ? (hex_bytes[i]     - '0') : (std::toupper(hex_bytes[i])     - 'A' + 10);
+                uint8_t low  = std::isdigit(hex_bytes[i + 1]) ? (hex_bytes[i + 1] - '0') : (std::toupper(hex_bytes[i + 1]) - 'A' + 10);
+
+                fd.hash[i / 2] = (high << 4) | low;
+            }
+        }
+
+        format.desc_block->files.push_back(fd);
+
+        context.invoke_update(prog_change);
     }
+
+    format.file_desc_block_offset = (uint32_t)stream.pos();
+    format.file_count             = (uint64_t)format.desc_block->files.size();
+    
+    format.write_file_desc_block(stream);
+    format.write_format_desc(stream);
 
     result.status = evp_result_status::ok;
 
@@ -541,56 +571,48 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
 
     context.invoke_start();
 
-    try {
-        std::vector<uint8_t> buffer{};
-        buffer.resize(EVP_BUFFER_SIZE);
+    std::vector<uint8_t> buffer{};
+    buffer.resize(EVP_BUFFER_SIZE);
 
-        for (evp_fd& fd : format->desc_block->files) {
-            if (context.is_cancelled()) {
-                context.invoke_cancel();
+    for (evp_fd& fd : format->desc_block->files) {
+        if (context.is_cancelled()) {
+            context.invoke_cancel();
 
-                result.status = evp_result_status::cancelled;
-                return result;
-            }
-            
-            std::filesystem::path dir_path(output);
-            dir_path /= fd.file;
-            dir_path.remove_filename();
-
-            std::filesystem::path file_path(output);
-            file_path /= fd.file;
-
-            if (!std::filesystem::is_directory(dir_path)) {
-                std::filesystem::create_directories(dir_path);
-                std::filesystem::permissions(dir_path, std::filesystem::perms::all);
-            }
-
-            stream_write out_stream(file_path);
-            if (!out_stream.is_valid()) {
-                result.message = "Failed to open file.";
-                return result;
-            }
-
-            stream.seek(fd.data_offset, std::ios::beg);
-            
-            uint32_t left_to_read = fd.data_size;
-            while (left_to_read > 0) {
-                uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
-
-                stream.read(buffer.data(), read_count);
-                out_stream.write(buffer.data(), read_count);
-
-                left_to_read -= read_count;
-            }
-
-            context.invoke_update(prog_change);
+            result.status = evp_result_status::cancelled;
+            return result;
         }
-    }
-    catch (const std::exception& e) {
-        result.message = e.what();
+        
+        std::filesystem::path dir_path(output);
+        dir_path /= fd.file;
+        dir_path.remove_filename();
 
-        context.invoke_finish(result);
-        return result;
+        std::filesystem::path file_path(output);
+        file_path /= fd.file;
+
+        if (!std::filesystem::is_directory(dir_path)) {
+            std::filesystem::create_directories(dir_path);
+            std::filesystem::permissions(dir_path, std::filesystem::perms::all);
+        }
+
+        stream_write out_stream(file_path);
+        if (!out_stream.is_valid()) {
+            result.message = "Failed to open file.";
+            return result;
+        }
+
+        stream.seek(fd.data_offset, std::ios::beg);
+        
+        uint32_t left_to_read = fd.data_size;
+        while (left_to_read > 0) {
+            uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
+
+            stream.read(buffer.data(), read_count);
+            out_stream.write(buffer.data(), read_count);
+
+            left_to_read -= read_count;
+        }
+
+        context.invoke_update(prog_change);
     }
 
     result.status = evp_result_status::ok;

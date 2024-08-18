@@ -8,9 +8,6 @@
 
 #include <thread>
 #include <vector>
-#include <array>
-#include <fstream>
-#include <iterator>
 
 using namespace libevp;
 
@@ -18,15 +15,6 @@ constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
-
-struct file_desc {
-    std::string             path = "";
-    std::vector<uint8_t>    data{};
-    std::array<uint8_t, 16> data_hash{};
-    uint32_t                data_size = 0;
-    uint32_t                path_size = 0;
-    uint32_t                data_start_offset = 0;
-};
 
 /*
     Determines format and reads file descriptors.
@@ -48,9 +36,6 @@ static evp_result validate_evp_archive(const std::filesystem::path& input, bool 
 */
 static evp_result validate_directory(const std::filesystem::path& input);
 
-static std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size);
-
-static void serialize_file_desc(const file_desc& file_desc, std::vector<uint8_t>& buffer);
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
@@ -346,26 +331,6 @@ evp_result validate_directory(const std::filesystem::path& input) {
     return result;
 }
 
-std::array<unsigned char, 16> compute_md5(const void* ptr, size_t size) {
-    std::array<unsigned char, 16> result{};
-
-    MD5 md5_digest;
-    md5_digest.add(ptr, size);
-    md5_digest.getHash(result.data());
-
-    return result;
-}
-
-void serialize_file_desc(const file_desc& file_desc, std::vector<unsigned char>& buffer) {
-    buffer.insert(buffer.end(), (unsigned char*)&(file_desc.path_size), (unsigned char*)&(file_desc.path_size) + sizeof(uint32_t));
-    buffer.insert(buffer.end(), file_desc.path.begin(), file_desc.path.end());
-    buffer.insert(buffer.end(), (unsigned char*)&(file_desc.data_start_offset), (unsigned char*)&(file_desc.data_start_offset) + sizeof(uint32_t));
-    buffer.insert(buffer.end(), (unsigned char*)&(file_desc.data_size), (unsigned char*)&(file_desc.data_size) + sizeof(uint32_t));
-    buffer.insert(buffer.end(), (unsigned char*)&(file_desc.data_size), (unsigned char*)&(file_desc.data_size) + sizeof(uint32_t));
-    buffer.insert(buffer.end(), 1, 1);
-    buffer.insert(buffer.end(), 11, 0);
-    buffer.insert(buffer.end(), file_desc.data_hash.data(), file_desc.data_hash.data() + file_desc.data_hash.size());
-}
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 

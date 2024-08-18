@@ -39,8 +39,8 @@ namespace libevp {
         }
 
         template<typename T>
-        requires arithmetic<T>
-        void write(const T& value) {
+        requires arithmetic<T> || is_enum<T>
+        void write(const T value) {
             internal_write(&value, sizeof(T));
         }
 

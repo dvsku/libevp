@@ -36,7 +36,7 @@ TEST(packing, v1_packing) {
 
     auto r1 = evp.pack(input, output);
 
-    EXPECT_TRUE(r1.status == evp_result_status::ok);
+    EXPECT_TRUE(r1);
     EXPECT_TRUE(compare_files(output, valid));
 
     std::remove(output.c_str());

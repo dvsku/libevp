@@ -47,8 +47,8 @@ TEST(unpacking, v1_unpacking) {
 
     auto r1 = evp.unpack(input, output);
 
-    ASSERT_TRUE(r1.status == evp_result_status::ok);
-    ASSERT_TRUE(compare_files(output_file, valid));
+    EXPECT_TRUE(r1);
+    EXPECT_TRUE(compare_files(output_file, valid));
 
     std::filesystem::remove_all(output);
 }
@@ -62,7 +62,7 @@ TEST(unpacking, v1_get_file) {
     std::vector<uint8_t> buffer;
 
     auto r1 = evp.get_file(input, "text_1.txt", buffer);
-    ASSERT_TRUE(r1.status == evp_result_status::ok);
+    ASSERT_TRUE(r1);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
     ASSERT_TRUE(stream.is_open());
@@ -80,7 +80,7 @@ TEST(unpacking, v1_get_file_stream) {
     std::stringstream ss;
 
     auto r1 = evp.get_file(input, "text_1.txt", ss);
-    ASSERT_TRUE(r1.status == evp_result_status::ok);
+    ASSERT_TRUE(r1);
 
     std::ifstream stream(valid, std::ios::in | std::ios::binary);
     ASSERT_TRUE(stream.is_open());

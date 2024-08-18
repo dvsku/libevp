@@ -61,7 +61,7 @@ evp_result evp::pack(const dir_path_t& input_dir, const file_path_t& evp, evp_fi
     }
     catch (const std::exception& e) {
         evp_result result;
-        result.status  = evp_result_status::error;
+        result.status  = evp_result::status::failure;
         result.message = e.what();
 
         return result;
@@ -75,7 +75,7 @@ evp_result evp::unpack(const file_path_t& evp, const dir_path_t& output_dir) {
     }
     catch (const std::exception& e) {
         evp_result result;
-        result.status  = evp_result_status::error;
+        result.status  = evp_result::status::failure;
         result.message = e.what();
 
         return result;
@@ -91,7 +91,7 @@ void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_fi
         }
         catch (const std::exception& e) {
             evp_result result;
-            result.status  = evp_result_status::error;
+            result.status  = evp_result::status::failure;
             result.message = e.what();
 
             context_internal.invoke_finish(result);
@@ -109,7 +109,7 @@ void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp
         }
         catch (const std::exception& e) {
             evp_result result;
-            result.status  = evp_result_status::error;
+            result.status  = evp_result::status::failure;
             result.message = e.what();
 
             context_internal.invoke_finish(result);
@@ -120,7 +120,7 @@ void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp
 
 evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
     evp_result result, res;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     res = validate_evp_archive(evp, true);
     if (!res) {
@@ -145,13 +145,13 @@ evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
         files.push_back(file);
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
     return result;
 }
 
 evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<uint8_t>& buffer) {
     evp_result result, res;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     res = validate_evp_archive(evp, true);
     if (!res) {
@@ -176,7 +176,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<u
         return result;
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
     return result;
 }
 
@@ -194,7 +194,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::stringst
 
 evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer) {
     evp_result result, res;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
     
     res = validate_evp_archive(evp, true);
     if (!res) {
@@ -230,7 +230,7 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::v
         }
 
         if (found) {
-            result.status = evp_result_status::ok;
+            result.status = evp_result::status::ok;
         }
         else {
             result.message = "File not found.";
@@ -265,7 +265,7 @@ std::vector<evp::file_path_t> evp::get_filtered_files(const dir_path_t& input, e
 
 evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& format) {
     evp_result result;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     try {
         auto res = determine_format(stream, format);
@@ -286,13 +286,13 @@ evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& fo
         return result;
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
     return result;
 }
 
 evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format) {
     evp_result result;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     std::shared_ptr<libevp::format::format> supported_formats[] = {
         static_pointer_cast<libevp::format::format>(std::make_shared<libevp::format::v1::format>())
@@ -306,7 +306,7 @@ evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format:
         if (supported_format->is_valid) {
             format = supported_format;
 
-            result.status = evp_result_status::ok;
+            result.status = evp_result::status::ok;
             return result;
         }
     }
@@ -316,7 +316,7 @@ evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format:
 
 evp_result validate_evp_archive(const std::filesystem::path& input, bool existing) {
     evp_result result;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     try {
         if (existing) {
@@ -346,13 +346,13 @@ evp_result validate_evp_archive(const std::filesystem::path& input, bool existin
         return result;
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
     return result;
 }
 
 evp_result validate_directory(const std::filesystem::path& input) {
     evp_result result;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     try {
         if (!std::filesystem::exists(input)) {
@@ -370,7 +370,7 @@ evp_result validate_directory(const std::filesystem::path& input) {
         return result;
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
     return result;
 }
 
@@ -381,7 +381,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     evp_context_internal& context, evp_filter filter)
 {
     evp_result result, res;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
@@ -438,7 +438,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         if (context.is_cancelled()) {
             context.invoke_cancel();
 
-            result.status = evp_result_status::cancelled;
+            result.status = evp_result::status::cancelled;
             return result;
         }
 
@@ -507,7 +507,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     format.write_file_desc_block(stream);
     format.write_format_desc(stream);
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
 
     context.invoke_finish(result);
     return result;
@@ -517,7 +517,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     evp_context_internal& context)
 {
     evp_result result, res;
-    result.status = evp_result_status::error;
+    result.status = evp_result::status::failure;
 
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
@@ -578,7 +578,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         if (context.is_cancelled()) {
             context.invoke_cancel();
 
-            result.status = evp_result_status::cancelled;
+            result.status = evp_result::status::cancelled;
             return result;
         }
         
@@ -615,7 +615,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         context.invoke_update(prog_change);
     }
 
-    result.status = evp_result_status::ok;
+    result.status = evp_result::status::ok;
 
     context.invoke_finish(result);
     return result;

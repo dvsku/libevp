@@ -4,27 +4,19 @@
 #include <cstdint>
 
 namespace libevp {
-    enum class evp_result_status : uint8_t {
-        undefined = 0x0,
-        cancelled = 0x1,
-        error     = 0x2,
-        ok        = 0x3
-    };
-
     struct evp_result {
-        evp_result_status status  = evp_result_status::undefined;
-        std::string       message = "";
+        enum class status : uint8_t {
+            undefined = 0x0,
+            cancelled = 0x1,
+            failure   = 0x2,
+            ok        = 0x3
+        };
 
-        evp_result() {};
-
-        evp_result(evp_result_status _status)
-            : status(_status) {};
-
-        evp_result(evp_result_status _status, const std::string& _message)
-            : status(_status), message(_message) {};
+        evp_result::status status  = evp_result::status::undefined;
+        std::string        message = "";
 
         explicit operator bool() const {
-            return status == evp_result_status::ok;
+            return status == evp_result::status::ok;
         }
     };
 }

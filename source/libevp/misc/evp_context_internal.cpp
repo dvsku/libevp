@@ -27,7 +27,7 @@ bool evp_context_internal::is_cancelled() const {
 
 void evp_context_internal::invoke_cancel() const {
     evp_result result;
-    result.status = evp_result_status::cancelled;
+    result.status = evp_result::status::cancelled;
 
     invoke_finish(result);
 }

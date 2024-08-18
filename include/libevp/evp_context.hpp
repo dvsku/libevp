@@ -3,35 +3,43 @@
 #include <libevp/evp_result.hpp>
 
 #include <functional>
-#include <filesystem>
-#include <vector>
-#include <cstdint>
 #include <atomic>
 
 namespace libevp {
-    class evp;
-    class evp_impl;
+    /*
+        evp context object
 
-    class evp_context {
-    public:
+        Contains user bound callbacks and work cancelling.
+    */
+    struct evp_context {
         using start_callback_t  = std::function<void()>;
         using finish_callback_t = std::function<void(evp_result)>;
         using update_callback_t = std::function<void(float)>;
 
-    public:
-        start_callback_t  start_callback  = nullptr;
+        /*
+            Start callback.
+
+            @param void()
+        */
+        start_callback_t start_callback = nullptr;
+
+        /*
+            Finish callback.
+
+            @param void(evp_result)
+        */
         finish_callback_t finish_callback = nullptr;
+
+        /*
+            Update callback.
+
+            @param void(float) -> progress change
+        */
         update_callback_t update_callback = nullptr;
-        std::atomic_bool* cancel          = nullptr;
 
-    private:
-        friend evp;
-        friend evp_impl;
-
-    private:
-        void invoke_start();
-        void invoke_finish(const evp_result& result);
-        void invoke_update(float progress);
-        bool invoke_cancel();
+        /*
+            Cancel token.
+        */
+        std::atomic_bool* cancel = nullptr;
     };
 }

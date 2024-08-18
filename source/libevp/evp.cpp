@@ -1,9 +1,10 @@
 #include "libevp/evp.hpp"
-#include "libevp/utilities/filtering.hpp"
 #include "libevp/format/format.hpp"
 #include "libevp/format/supported_formats.hpp"
 #include "libevp/stream/stream_read.hpp"
 #include "libevp/stream/stream_write.hpp"
+#include "libevp/misc/evp_context_internal.hpp"
+#include "libevp/utilities/filtering.hpp"
 #include "md5/md5.hpp"
 
 #include <thread>
@@ -43,10 +44,10 @@ namespace libevp {
     class evp_impl {
     public:
         static evp_result pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
-            evp_filter filter = evp_filter::none, evp_context* context = nullptr);
+            evp_context_internal& context, evp_filter filter = evp_filter::none);
 
         static evp_result unpack_impl(const std::filesystem::path& evp, const std::filesystem::path& output_dir,
-            evp_context* context = nullptr);
+            evp_context_internal& context);
     };
 }
 
@@ -54,23 +55,27 @@ namespace libevp {
 // PUBLIC
 
 evp_result evp::pack(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter) {
-    return evp_impl::pack_impl(input_dir, evp, filter, nullptr);
+    evp_context_internal context_internal(nullptr);
+    return evp_impl::pack_impl(input_dir, evp, context_internal, filter);
 }
 
 evp_result evp::unpack(const file_path_t& evp, const dir_path_t& output_dir) {
-    return evp_impl::unpack_impl(evp, output_dir, nullptr);
+    evp_context_internal context_internal(nullptr);
+    return evp_impl::unpack_impl(evp, output_dir, context_internal);
 }
 
 void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter, evp_context* context) {
     std::thread t([input_dir, evp, filter, context] {
-        evp_impl::pack_impl(input_dir, evp, filter, context);
+        evp_context_internal context_internal(context);
+        evp_impl::pack_impl(input_dir, evp, context_internal, filter);
     });
     t.detach();
 }
 
 void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context) {
     std::thread t([evp, output_dir, context] {
-        evp_impl::unpack_impl(evp, output_dir, context);
+        evp_context_internal context_internal(context);
+        evp_impl::unpack_impl(evp, output_dir, context_internal);
     });
     t.detach();
 }
@@ -335,7 +340,7 @@ evp_result validate_directory(const std::filesystem::path& input) {
 // EVP IMPL
 
 evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
-    evp_filter filter, evp_context* context)
+    evp_context_internal& context, evp_filter filter)
 {
     evp_result result, res;
     result.status = evp_result_status::error;
@@ -356,9 +361,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     if (!res) {
         result.message = res.message;
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
@@ -366,9 +369,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     if (!res) {
         result.message = res.message;
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
@@ -381,17 +382,14 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
     auto  files       = filtering::get_filtered_paths(input, filter);
     float prog_change = 100.0f / files.size();
 
-    if (context)
-        context->invoke_start();
+    context.invoke_start();
 
     try {
         std::vector<uint8_t> buffer{};
@@ -400,12 +398,10 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         format.write_format_desc(stream);
 
         for (auto& filename : files) {
-            if (context && context->invoke_cancel()) {
+            if (context.is_cancelled()) {
+                context.invoke_cancel();
+
                 result.status = evp_result_status::cancelled;
-
-                if (context)
-                    context->invoke_finish(result);
-
                 return result;
             }
 
@@ -413,9 +409,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
             if (!read_stream.is_valid()) {
                 result.message = "Failed to open file.";
 
-                if (context)
-                    context->invoke_finish(result);
-
+                context.invoke_finish(result);
                 return result;
             }
 
@@ -467,8 +461,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
             format.desc_block->files.push_back(fd);
 
-            if (context)
-                context->invoke_update(prog_change);
+            context.invoke_update(prog_change);
         }
 
         format.file_desc_block_offset = (uint32_t)stream.pos();
@@ -480,22 +473,18 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     catch (const std::exception& e) {
         result.message = e.what();
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
     result.status = evp_result_status::ok;
 
-    if (context)
-        context->invoke_finish(result);
-
+    context.invoke_finish(result);
     return result;
 }
 
 evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::filesystem::path& output_dir,
-    evp_context* context)
+    evp_context_internal& context)
 {
     evp_result result, res;
     result.status = evp_result_status::error;
@@ -516,9 +505,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!res) {
         result.message = res.message;
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
@@ -526,9 +513,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!res) {
         result.message = res.message;
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
@@ -539,9 +524,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
@@ -550,28 +533,23 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     if (!res) {
         result.message = res.message;
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
     float prog_change = 100.0f / format->file_count;
 
-    if (context)
-        context->invoke_start();
+    context.invoke_start();
 
     try {
         std::vector<uint8_t> buffer{};
         buffer.resize(EVP_BUFFER_SIZE);
 
         for (evp_fd& fd : format->desc_block->files) {
-            if (context && context->invoke_cancel()) {
+            if (context.is_cancelled()) {
+                context.invoke_cancel();
+
                 result.status = evp_result_status::cancelled;
-
-                if (context)
-                    context->invoke_finish(result);
-
                 return result;
             }
             
@@ -605,23 +583,18 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
                 left_to_read -= read_count;
             }
 
-            if (context)
-                context->invoke_update(prog_change);
+            context.invoke_update(prog_change);
         }
     }
     catch (const std::exception& e) {
         result.message = e.what();
 
-        if (context)
-            context->invoke_finish(result);
-
+        context.invoke_finish(result);
         return result;
     }
 
     result.status = evp_result_status::ok;
 
-    if (context)
-        context->invoke_finish(result);
-
+    context.invoke_finish(result);
     return result;
 }

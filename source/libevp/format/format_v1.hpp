@@ -35,6 +35,8 @@ namespace libevp::format::v1 {
 
     class format : public libevp::format::format {
     public:
+        using file_desc_block_ptr_t = std::shared_ptr<file_desc_block>;
+
         enum class type : uint32_t {
             undefined = 0x00000000,
             v207      = 0x00000064
@@ -42,6 +44,9 @@ namespace libevp::format::v1 {
 
     public:
         format::type format_type = format::type::undefined;
+
+    public:
+        format();
         
     public:
         void read_format_desc(libevp::stream_read& stream)     override final;

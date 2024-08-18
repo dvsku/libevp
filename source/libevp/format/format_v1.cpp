@@ -2,6 +2,10 @@
 
 #include <array>
 
+libevp::format::v1::format::format() {
+    desc_block = std::make_shared<libevp::format::v1::file_desc_block>();
+}
+
 void libevp::format::v1::format::read_format_desc(libevp::stream_read& stream) {
     std::array<uint8_t, sizeof(HEADER)> header = {};
 
@@ -27,8 +31,9 @@ void libevp::format::v1::format::read_format_desc(libevp::stream_read& stream) {
 }
 
 void libevp::format::v1::format::read_file_desc_block(libevp::stream_read& stream) {
-    auto block = std::make_shared<libevp::format::v1::file_desc_block>();
-    desc_block = static_pointer_cast<libevp::format::file_desc_block>(block);
+    if (!desc_block) return;
+
+    file_desc_block_ptr_t block = static_pointer_cast<file_desc_block>(desc_block);
 
     stream.seek(file_desc_block_offset, std::ios::beg);
 

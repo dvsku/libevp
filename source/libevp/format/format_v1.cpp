@@ -54,8 +54,14 @@ void libevp::format::v1::format::read_file_desc_block(libevp::stream_read& strea
         // data size
         fd.data_size = stream.read<uint32_t>();
 
+        // repeated data size (might be decompressed size)
+        stream.seek(sizeof(fd.data_size));
+
         // unidentified
-        stream.seek(0x20);
+        stream.seek(0xC);
+
+        // hash
+        stream.read(fd.hash.data(), (uint32_t)fd.hash.size());
 
         block->files.push_back(fd);
     }

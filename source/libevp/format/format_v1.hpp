@@ -1,6 +1,7 @@
 #pragma once
 
 #include "libevp/format/format.hpp"
+#include "libevp/stream/stream_write.hpp"
 
 #include <string>
 
@@ -51,6 +52,9 @@ namespace libevp::format::v1 {
     public:
         void read_format_desc(libevp::stream_read& stream)     override final;
         void read_file_desc_block(libevp::stream_read& stream) override final;
+
+        void write_format_desc(libevp::stream_write& stream);
+        void write_file_desc_block(libevp::stream_write& stream);
 
     private:
         static inline uint8_t HEADER[56] = {

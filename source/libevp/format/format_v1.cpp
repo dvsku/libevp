@@ -71,3 +71,42 @@ void libevp::format::v1::format::read_file_desc_block(libevp::stream_read& strea
         block->files.push_back(fd);
     }
 }
+
+void libevp::format::v1::format::write_format_desc(libevp::stream_write& stream) {
+    stream.seek(0, std::ios::beg);
+
+    stream.write(format::HEADER, (uint32_t)sizeof(format::HEADER));
+    stream.write(format::type::v207);
+    stream.write(file_desc_block_offset);
+    stream.write(file_desc_block_size);
+    stream.write(file_count);
+}
+
+void libevp::format::v1::format::write_file_desc_block(libevp::stream_write& stream) {
+    if (!desc_block) return;
+
+    file_desc_block_ptr_t block = static_pointer_cast<file_desc_block>(desc_block);
+
+    stream.seek(file_desc_block_offset, std::ios::beg);   
+    file_desc_block_size = (uint32_t)stream.pos();
+    
+    stream.write(block->region_name);
+    stream.write(block->_unk_1);
+    stream.write(block->_unk_2);
+    stream.write(block->_unk_3);
+
+    for (size_t i = 0; i < block->files.size(); i++) {
+        evp_fd& fd = block->files[i];
+
+        stream.write(fd.file);
+        stream.write(fd.data_offset);
+        stream.write(fd.data_size);
+        stream.write(fd.data_size);
+        stream.write((uint32_t)0x00000001);
+        stream.write((uint32_t)0x00000000);
+        stream.write((uint32_t)0x00000000);
+        stream.write(fd.hash.data(), (uint32_t)fd.hash.size());
+    }
+
+    file_desc_block_size = (uint32_t)stream.pos() - file_desc_block_size;
+}

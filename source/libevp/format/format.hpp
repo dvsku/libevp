@@ -23,7 +23,7 @@ namespace libevp::format {
 
         std::shared_ptr<file_desc_block> desc_block;
 
-        virtual void read_format_desc(libevp::stream_read& stream)     = 0;
-        virtual void read_file_desc_block(libevp::stream_read& stream) = 0;
+        virtual void read_format_desc(libevp::fstream_read& stream)     = 0;
+        virtual void read_file_desc_block(libevp::fstream_read& stream) = 0;
     };
 }

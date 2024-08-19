@@ -4,18 +4,19 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include <fstream>
 #include <filesystem>
 #include <stdexcept>
 
 namespace libevp {
-    class stream_read {
+    class fstream_read {
     public:
-        stream_read()                   = delete;
-        stream_read(const stream_read&) = delete;
-        stream_read(stream_read&&)      = default;
+        fstream_read()                   = delete;
+        fstream_read(const fstream_read&) = delete;
+        fstream_read(fstream_read&&)      = default;
 
-        stream_read(const std::filesystem::path& file) {
+        fstream_read(const std::filesystem::path& file) {
             if (!std::filesystem::exists(file))
                 return;
             
@@ -30,8 +31,8 @@ namespace libevp {
             seek(0, std::ios_base::beg);
         }
 
-        stream_read& operator=(const stream_read&) = delete;
-        stream_read& operator=(stream_read&&) = default;
+        fstream_read& operator=(const fstream_read&) = delete;
+        fstream_read& operator=(fstream_read&&) = default;
 
     public:
         size_t pos() const {
@@ -85,6 +86,71 @@ namespace libevp {
                 throw std::runtime_error("Failed to read requested size.");
 
             m_pos = static_cast<size_t>(m_stream->tellg());
+        }
+    };
+
+    class stream_read {
+    public:
+        stream_read()                   = delete;
+        stream_read(const stream_read&) = delete;
+        stream_read(stream_read&&)      = default;
+
+        stream_read(const std::vector<uint8_t>& buffer)
+            : m_buffer(buffer) {}
+
+        stream_read& operator=(const stream_read&) = delete;
+        stream_read& operator=(stream_read&&)      = default;
+
+    public:
+        size_t pos() const {
+            return m_pos;
+        }
+
+        size_t size() const {
+            return m_buffer.size();
+        }
+
+        void seek(size_t offset, std::ios_base::seekdir dir = std::ios_base::cur) {
+            if (dir == std::ios::cur)
+                m_pos += offset;
+            else if (dir == std::ios::beg)
+                m_pos = offset;
+            else if (dir == std::ios::end)
+                m_pos = m_buffer.size() - offset;
+
+            if (m_pos > m_buffer.size())
+                throw std::out_of_range("Tried to seek outside bounds.");
+        }
+
+        template<typename T>
+        requires arithmetic<T>
+        T read() {
+            T value{};
+            internal_read(&value, sizeof(T));
+            return value;
+        }
+
+        std::string read(uint32_t size) {
+            std::string value(size, 0);
+            internal_read(value.data(), size);
+            return value;
+        }
+
+        void read(uint8_t* dst, uint32_t size) {
+            internal_read(dst, size);
+        }
+
+    private:
+        const std::vector<uint8_t>& m_buffer;
+        size_t                      m_pos = 0U;
+
+    private:
+        void internal_read(void* dst, uint32_t size) {
+            if (m_pos + size > m_buffer.size())
+                throw std::out_of_range("Tried to read outside bounds.");
+
+            memcpy(dst, m_buffer.data() + m_pos, size);
+            m_pos += size;
         }
     };
 }

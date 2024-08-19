@@ -20,12 +20,12 @@ constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
 /*
     Determines format and reads file descriptors.
 */
-static evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& format);
+static evp_result read_structure(fstream_read& stream, libevp::format::format::ptr_t& format);
 
 /*
     Determine archive format.
 */
-static evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format);
+static evp_result determine_format(fstream_read& stream, std::shared_ptr<libevp::format::format>& format);
 
 /*
     Validate that input is an EVP archive.
@@ -128,7 +128,7 @@ evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
         return result;
     }
 
-    stream_read stream(evp);
+    fstream_read stream(evp);
     if (!stream.is_valid()) {
         result.message = "Failed to open file.";
         return result;
@@ -159,7 +159,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<u
         return result;
     }
 
-    stream_read stream(evp.string());
+    fstream_read stream(evp.string());
     if (!stream.is_valid()) {
         result.message = "Failed to open file.";
         return result;
@@ -202,7 +202,7 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::v
         return result;
     }
 
-    stream_read stream(evp.string());
+    fstream_read stream(evp.string());
     if (!stream.is_valid()) {
         result.message = "Failed to open file.";
         return result;
@@ -263,7 +263,7 @@ std::vector<evp::file_path_t> evp::get_filtered_files(const dir_path_t& input, e
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& format) {
+evp_result read_structure(fstream_read& stream, libevp::format::format::ptr_t& format) {
     evp_result result;
     result.status = evp_result::status::failure;
 
@@ -290,7 +290,7 @@ evp_result read_structure(stream_read& stream, libevp::format::format::ptr_t& fo
     return result;
 }
 
-evp_result determine_format(stream_read& stream, std::shared_ptr<libevp::format::format>& format) {
+evp_result determine_format(fstream_read& stream, std::shared_ptr<libevp::format::format>& format) {
     evp_result result;
     result.status = evp_result::status::failure;
 
@@ -442,7 +442,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
             return result;
         }
 
-        stream_read read_stream(filename);
+        fstream_read read_stream(filename);
         if (!read_stream.is_valid()) {
             result.message = "Failed to open file.";
 
@@ -550,7 +550,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     ///////////////////////////////////////////////////////////////////////////
     // UNPACK
 
-    stream_read stream(input.string());
+    fstream_read stream(input.string());
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 

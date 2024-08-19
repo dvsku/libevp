@@ -50,8 +50,8 @@ namespace libevp::format::v1 {
         format();
         
     public:
-        void read_format_desc(libevp::stream_read& stream)     override final;
-        void read_file_desc_block(libevp::stream_read& stream) override final;
+        void read_format_desc(libevp::fstream_read& stream)     override final;
+        void read_file_desc_block(libevp::fstream_read& stream) override final;
 
         void write_format_desc(libevp::stream_write& stream);
         void write_file_desc_block(libevp::stream_write& stream);

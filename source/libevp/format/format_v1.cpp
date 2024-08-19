@@ -6,7 +6,7 @@ libevp::format::v1::format::format() {
     desc_block = std::make_shared<libevp::format::v1::file_desc_block>();
 }
 
-void libevp::format::v1::format::read_format_desc(libevp::stream_read& stream) {
+void libevp::format::v1::format::read_format_desc(libevp::fstream_read& stream) {
     std::array<uint8_t, sizeof(HEADER)> header = {};
 
     stream.seek(0, std::ios::beg);
@@ -30,7 +30,7 @@ void libevp::format::v1::format::read_format_desc(libevp::stream_read& stream) {
     is_valid = true;
 }
 
-void libevp::format::v1::format::read_file_desc_block(libevp::stream_read& stream) {
+void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stream) {
     if (!desc_block) return;
 
     file_desc_block_ptr_t block = static_pointer_cast<file_desc_block>(desc_block);

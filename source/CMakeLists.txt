@@ -1,5 +1,5 @@
 ﻿FILE(GLOB_RECURSE BUILD_FILE_LIST CONFIGURE_DEPENDS 
-    "*.cpp"
+    "*.cpp" "*.c"
 )
 
 ADD_LIBRARY(libevp STATIC 

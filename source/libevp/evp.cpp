@@ -36,6 +36,11 @@ static evp_result validate_evp_archive(const std::filesystem::path& input, bool 
 */
 static evp_result validate_directory(const std::filesystem::path& input);
 
+/*
+    Convert MD5 string to bytes
+*/
+static void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes);
+
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
@@ -373,6 +378,17 @@ evp_result validate_directory(const std::filesystem::path& input) {
     return result;
 }
 
+void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes) {
+    std::string hex_bytes = md5.getHash();
+
+    for (size_t i = 0; i < hex_bytes.size(); i += 2) {
+        uint8_t high = std::isdigit(hex_bytes[i])     ? (hex_bytes[i]     - '0') : (std::toupper(hex_bytes[i])     - 'A' + 10);
+        uint8_t low  = std::isdigit(hex_bytes[i + 1]) ? (hex_bytes[i + 1] - '0') : (std::toupper(hex_bytes[i + 1]) - 'A' + 10);
+
+        bytes[i / 2] = (high << 4) | low;
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
@@ -484,16 +500,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
             left_to_read -= read_count;
         }
 
-        {
-            std::string hex_bytes = md5.getHash();
-
-            for (size_t i = 0; i < hex_bytes.size(); i += 2) {
-                uint8_t high = std::isdigit(hex_bytes[i])     ? (hex_bytes[i]     - '0') : (std::toupper(hex_bytes[i])     - 'A' + 10);
-                uint8_t low  = std::isdigit(hex_bytes[i + 1]) ? (hex_bytes[i + 1] - '0') : (std::toupper(hex_bytes[i + 1]) - 'A' + 10);
-
-                fd.hash[i / 2] = (high << 4) | low;
-            }
-        }
+        MD5_hex_string_to_bytes(md5, fd.hash.data());
 
         format.desc_block->files.push_back(fd);
 

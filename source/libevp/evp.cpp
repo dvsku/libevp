@@ -416,7 +416,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
     format::v1::format format;
 
-    stream_write stream(output);
+    fstream_write stream(output);
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
@@ -594,7 +594,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
             std::filesystem::permissions(dir_path, std::filesystem::perms::all);
         }
 
-        stream_write out_stream(file_path);
+        fstream_write out_stream(file_path);
         if (!out_stream.is_valid()) {
             result.message = "Failed to open file.";
             return result;

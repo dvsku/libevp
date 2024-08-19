@@ -89,7 +89,7 @@ void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stre
     }
 }
 
-void libevp::format::v1::format::write_format_desc(libevp::stream_write& stream) {
+void libevp::format::v1::format::write_format_desc(libevp::fstream_write& stream) {
     stream.seek(0, std::ios::beg);
 
     stream.write(HEADER, (uint32_t)sizeof(HEADER));
@@ -100,7 +100,7 @@ void libevp::format::v1::format::write_format_desc(libevp::stream_write& stream)
     stream.write(_unk_1);
 }
 
-void libevp::format::v1::format::write_file_desc_block(libevp::stream_write& stream) {
+void libevp::format::v1::format::write_file_desc_block(libevp::fstream_write& stream) {
     if (!desc_block) return;
 
     file_desc_block_ptr_t block = static_pointer_cast<file_desc_block>(desc_block);

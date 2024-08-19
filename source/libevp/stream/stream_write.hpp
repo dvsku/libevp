@@ -8,13 +8,13 @@
 #include <filesystem>
 
 namespace libevp {
-    class stream_write {
+    class fstream_write {
     public:
-        stream_write()                    = delete;
-        stream_write(const stream_write&) = delete;
-        stream_write(stream_write&&)      = default;
+        fstream_write()                     = delete;
+        fstream_write(const fstream_write&) = delete;
+        fstream_write(fstream_write&&)      = default;
 
-        stream_write(const std::filesystem::path& file) {
+        fstream_write(const std::filesystem::path& file) {
             m_stream = std::make_unique<std::ofstream>(file, std::ios::binary);
             if (!m_stream || !m_stream->is_open()) {
                 m_stream = nullptr;
@@ -22,8 +22,8 @@ namespace libevp {
             }
         }
 
-        stream_write& operator=(const stream_write&) = delete;
-        stream_write& operator=(stream_write&&)      = default;
+        fstream_write& operator=(const fstream_write&) = delete;
+        fstream_write& operator=(fstream_write&&)      = default;
 
     public:
         size_t pos() const {

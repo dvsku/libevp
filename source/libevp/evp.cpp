@@ -5,6 +5,7 @@
 #include "libevp/stream/stream_write.hpp"
 #include "libevp/misc/evp_context_internal.hpp"
 #include "libevp/utilities/filtering.hpp"
+#include "libevp/defs.hpp"
 #include "md5/md5.hpp"
 
 #include <thread>
@@ -14,8 +15,6 @@ using namespace libevp;
 
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
-
-constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
 
 /*
     Determines format and reads file descriptors.

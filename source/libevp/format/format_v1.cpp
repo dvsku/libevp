@@ -5,7 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-uint8_t HEADER[56] = {
+constexpr uint8_t HEADER[56] = {
     0x35, 0x32, 0x35, 0x63, 0x31, 0x37, 0x61, 0x36, 0x61, 0x37, 0x63, 0x66, 0x62, 0x63,
     0x64, 0x37, 0x35, 0x34, 0x31, 0x32, 0x65, 0x63, 0x64, 0x30, 0x36, 0x39, 0x64, 0x34,
     0x62, 0x37, 0x32, 0x63, 0x33, 0x38, 0x39, 0x00, 0x10, 0x00, 0x00, 0x00, 0x4E, 0x4F,
@@ -92,7 +92,7 @@ void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stre
 void libevp::format::v1::format::write_format_desc(libevp::fstream_write& stream) {
     stream.seek(0, std::ios::beg);
 
-    stream.write(HEADER, (uint32_t)sizeof(HEADER));
+    stream.write((uint8_t*)HEADER, (uint32_t)sizeof(HEADER));
     stream.write(format::type::v207);
     stream.write(file_desc_block_offset);
     stream.write(file_desc_block_size);

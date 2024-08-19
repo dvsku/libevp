@@ -87,6 +87,18 @@ namespace libevp {
         LIBEVP_API void unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context = nullptr);
 
         /*
+         *  Validate files packed inside .evp archive.
+         *
+         *  @param evp   -> file path to .evp archive
+         *  @param files -> vector to store file fds that failed to validate
+         *
+         *  @returns evp_result
+         *      status == evp_result_status::ok         all files successfully validated;
+         *      status == evp_result_status::error      an error occurred, message contains details;
+        */
+        LIBEVP_API evp_result validate_files(const file_path_t& evp, std::vector<evp_fd>* failed_fds = nullptr);
+
+        /*
          *  Get file fds packed inside .evp archive.
          *
          *  @param evp   -> file path to .evp archive

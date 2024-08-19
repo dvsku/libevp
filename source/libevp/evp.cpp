@@ -122,6 +122,55 @@ void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp
     t.detach();
 }
 
+evp_result evp::validate_files(const file_path_t& evp, std::vector<evp_fd>* failed_fds) {
+    evp_result result, res;
+    result.status = evp_result::status::failure;
+
+    res = validate_evp_archive(evp, true);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
+
+    fstream_read stream(evp);
+    if (!stream.is_valid()) {
+        result.message = "Failed to open file.";
+        return result;
+    }
+
+    format::format::ptr_t format;
+    res = read_structure(stream, format);
+    if (!res) {
+        result.message = res.message;
+        return result;
+    }
+
+    uint32_t failed_count = 0U;
+    for (auto& file : format->desc_block->files) {
+        MD5                     md5;
+        std::array<uint8_t, 16> hash      = {};
+        uint32_t                read_size = 0U;
+
+        format->read_file_data(stream, file, [&](uint8_t* data, uint32_t size) {
+            md5.add(data, size);
+            read_size += size;
+        });
+
+        if (read_size)
+            MD5_hex_string_to_bytes(md5, hash.data());
+        
+        if (memcmp(hash.data(), file.hash.data(), 16) != 0) {
+            failed_count++;
+
+            if (failed_fds)
+                failed_fds->push_back(file);
+        }
+    }
+
+    result.status = failed_count == 0 ? evp_result::status::ok : evp_result::status::failure;
+    return result;
+}
+
 evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
     evp_result result, res;
     result.status = evp_result::status::failure;

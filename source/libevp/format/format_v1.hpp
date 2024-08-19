@@ -4,6 +4,7 @@
 #include "libevp/stream/stream_write.hpp"
 
 #include <string>
+#include <vector>
 
 namespace libevp::format::v1 {
     struct file_desc_block : libevp::format::file_desc_block {
@@ -30,10 +31,14 @@ namespace libevp::format::v1 {
         format();
         
     public:
-        void read_format_desc(libevp::fstream_read& stream)     override final;
-        void read_file_desc_block(libevp::fstream_read& stream) override final;
+        void read_format_desc(libevp::fstream_read& stream)                                        override final;
+        void read_file_desc_block(libevp::fstream_read& stream)                                    override final;
+        void read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb = nullptr) override final;
 
         void write_format_desc(libevp::fstream_write& stream);
         void write_file_desc_block(libevp::fstream_write& stream);
+
+    private:
+        std::vector<uint8_t> m_buffer = {};
     };
 }

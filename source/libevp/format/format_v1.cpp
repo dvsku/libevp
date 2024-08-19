@@ -1,4 +1,5 @@
 #include "libevp/format/format_v1.hpp"
+#include "libevp/defs.hpp"
 
 #include <array>
 
@@ -17,6 +18,8 @@ constexpr uint8_t HEADER[56] = {
 
 libevp::format::v1::format::format() {
     desc_block = std::make_shared<libevp::format::v1::file_desc_block>();
+    
+    m_buffer.resize(EVP_BUFFER_SIZE);
 }
 
 void libevp::format::v1::format::read_format_desc(libevp::fstream_read& stream) {
@@ -86,6 +89,21 @@ void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stre
         stream.read(fd.hash.data(), (uint32_t)fd.hash.size());
 
         block->files.push_back(fd);
+    }
+}
+
+void libevp::format::v1::format::read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb) {
+    stream.seek(fd.data_offset, std::ios::beg);
+
+    uint32_t left_to_read = fd.data_size;
+    while (left_to_read > 0) {
+        uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
+
+        stream.read(m_buffer.data(), read_count);
+        if (cb)
+            cb(m_buffer.data(), read_count);
+
+        left_to_read -= read_count;
     }
 }
 

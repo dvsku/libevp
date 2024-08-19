@@ -12,10 +12,10 @@
 
 using namespace libevp;
 
-constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
-
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
+
+constexpr uint32_t EVP_BUFFER_SIZE = 1024 * 1024;
 
 /*
     Determines format and reads file descriptors.

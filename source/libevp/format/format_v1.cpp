@@ -2,6 +2,19 @@
 
 #include <array>
 
+////////////////////////////////////////////////////////////////////////////////
+// INTERNAL
+
+uint8_t HEADER[56] = {
+    0x35, 0x32, 0x35, 0x63, 0x31, 0x37, 0x61, 0x36, 0x61, 0x37, 0x63, 0x66, 0x62, 0x63,
+    0x64, 0x37, 0x35, 0x34, 0x31, 0x32, 0x65, 0x63, 0x64, 0x30, 0x36, 0x39, 0x64, 0x34,
+    0x62, 0x37, 0x32, 0x63, 0x33, 0x38, 0x39, 0x00, 0x10, 0x00, 0x00, 0x00, 0x4E, 0x4F,
+    0x52, 0x4D, 0x41, 0x4C, 0x5F, 0x50, 0x41, 0x43, 0x4B, 0x5F, 0x54, 0x59, 0x50, 0x45
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// PUBLIC
+
 libevp::format::v1::format::format() {
     desc_block = std::make_shared<libevp::format::v1::file_desc_block>();
 }
@@ -79,7 +92,7 @@ void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stre
 void libevp::format::v1::format::write_format_desc(libevp::stream_write& stream) {
     stream.seek(0, std::ios::beg);
 
-    stream.write(format::HEADER, (uint32_t)sizeof(format::HEADER));
+    stream.write(HEADER, (uint32_t)sizeof(HEADER));
     stream.write(format::type::v207);
     stream.write(file_desc_block_offset);
     stream.write(file_desc_block_size);

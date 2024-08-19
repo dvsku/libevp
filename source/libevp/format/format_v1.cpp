@@ -20,7 +20,8 @@ void libevp::format::v1::format::read_format_desc(libevp::fstream_read& stream) 
     format_type            = static_cast<format::type>(stream.read<uint32_t>());
     file_desc_block_offset = stream.read<uint32_t>();
     file_desc_block_size   = stream.read<uint32_t>();
-    file_count             = stream.read<uint64_t>();
+    file_count             = stream.read<uint32_t>();
+    _unk_1                 = stream.read<uint32_t>();
 
     switch (format_type) {
         case format::type::v207: break;
@@ -80,6 +81,7 @@ void libevp::format::v1::format::write_format_desc(libevp::stream_write& stream)
     stream.write(file_desc_block_offset);
     stream.write(file_desc_block_size);
     stream.write(file_count);
+    stream.write(_unk_1);
 }
 
 void libevp::format::v1::format::write_file_desc_block(libevp::stream_write& stream) {

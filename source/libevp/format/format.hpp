@@ -17,7 +17,8 @@ namespace libevp::format {
 
         uint32_t file_desc_block_offset = 0U;
         uint32_t file_desc_block_size   = 0U;
-        uint64_t file_count             = 0U;
+        uint32_t file_count             = 0U;
+        uint32_t _unk_1                 = 0U;
 
         bool is_valid = false;
 

@@ -57,14 +57,17 @@ void libevp::format::v1::format::read_file_desc_block(libevp::fstream_read& stre
         // data offset
         fd.data_offset = stream.read<uint32_t>();
 
+        // compressed data size
+        fd.data_compressed_size = stream.read<uint32_t>();
+
         // data size
         fd.data_size = stream.read<uint32_t>();
 
-        // repeated data size (might be decompressed size)
-        stream.seek(sizeof(fd.data_size));
+        // flags
+        fd.flags = stream.read<uint32_t>();
 
         // unidentified
-        stream.seek(0xC);
+        stream.seek(0x8);
 
         // hash
         stream.read(fd.hash.data(), (uint32_t)fd.hash.size());

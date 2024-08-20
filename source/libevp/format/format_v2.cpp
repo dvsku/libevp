@@ -30,10 +30,21 @@ constexpr uint8_t KEY[] = {
     0x9B, 0x97, 0xAF, 0x01, 0xA5, 0x4B, 0x14, 0xD8
 };
 
+struct obfuscation {
+    bool     encoded           = false;
+    bool     compressed        = false;
+    uint32_t compressed_size   = 0U;
+    uint32_t decompressed_size = 0U;
+};
+
 /*
-    Read obfuscated block.
-    First 64 bytes of the block are encoded and they hide the compression algorithm header.
-    After decoding, the block can be decompressed.
+    Read possibly obfuscated block.
+    
+    Encoded blocks have the first 64 bytes encoded.
+    Compressed blocks are compressed by one of the possible compressions.
+    
+    If block is both encoded and compressed, block was first compressed and then encoded.
+    If block is not encoded and compressed, return raw data.
 
     Possible encodings:
       - TEA
@@ -41,7 +52,8 @@ constexpr uint8_t KEY[] = {
     Possible compressions:
       - zlib
 */
-static void read_obfuscated_block(libevp::fstream_read& stream, uint32_t size, libevp::format::format::data_read_cb_t cb);
+static void read_obfuscated_block(libevp::fstream_read& stream, obfuscation obfuscation,
+    libevp::format::format::data_read_cb_t cb);
 
 /*
     Decode 64 bytes of the block.
@@ -111,7 +123,13 @@ void libevp::format::v2::format::read_file_desc_block(libevp::fstream_read& stre
 
     buffer_t buffer = {};
 
-    read_obfuscated_block(stream, block->compressed_size, [&](uint8_t* data, uint32_t size) {
+    obfuscation obfuscation       = {};
+    obfuscation.encoded           = true;
+    obfuscation.compressed        = true;
+    obfuscation.compressed_size   = block->compressed_size;
+    obfuscation.decompressed_size = block->size;
+
+    read_obfuscated_block(stream, obfuscation, [&](uint8_t* data, uint32_t size) {
         buffer.insert(buffer.end(), data, data + size);
     });
 
@@ -161,20 +179,23 @@ void libevp::format::v2::format::read_file_desc_block(libevp::fstream_read& stre
 }
 
 void libevp::format::v2::format::read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb) {
-    throw evp_exception("Not implemented.");
+    if (fd.flags & 4 && fd.data_size == fd.data_compressed_size)
+        return;
+        //throw evp_exception("Not implemented.");
+    
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-void read_obfuscated_block(libevp::fstream_read& stream, uint32_t size, libevp::format::format::data_read_cb_t cb) {
+void read_obfuscated_block(libevp::fstream_read& stream, obfuscation obfuscation, libevp::format::format::data_read_cb_t cb) {
     libevp::buffer_t read_buf = {};
     read_buf.resize(ZLIB_IN_CHUNK_SIZE);
 
     libevp::buffer_t decomp_buf = {};
     decomp_buf.resize(ZLIB_OUT_CHUNK_SIZE);
 
-    uint32_t left_to_read = size;
+    uint32_t left_to_read = obfuscation.compressed_size;
     uint32_t read_count   = 0U;
 
     /*
@@ -184,52 +205,63 @@ void read_obfuscated_block(libevp::fstream_read& stream, uint32_t size, libevp::
     read_count = (uint32_t)std::min(left_to_read, ZLIB_IN_CHUNK_SIZE);
     stream.read(read_buf.data(), read_count);
 
-    if (zlib_check_magic(read_buf.data(), read_count))
-        throw libevp::evp_exception("Non-encoded stream. Not implemented.");
-
-    /*
-        Decode TEA chunk
-    */
-
-    decode_block(read_buf.data(), read_count);
-
-    if (!zlib_check_magic(read_buf.data(), read_count))
-        throw libevp::evp_exception("Unsupported decoding/decompressing.");
+    if (obfuscation.encoded) {
+        decode_block(read_buf.data(), read_count);
+    }
 
     mz_stream mstream{};
-    mstream.zalloc   = Z_NULL;
-    mstream.zfree    = Z_NULL;
-    mstream.opaque   = Z_NULL;
-    mstream.avail_in = 0;
-    mstream.next_in  = Z_NULL;
 
-    if (mz_inflateInit(&mstream) != Z_OK)
-        throw libevp::evp_exception("Failed to init inflate stream.");
+    if (obfuscation.compressed) {
+        if (!zlib_check_magic(read_buf.data(), read_count))
+            throw libevp::evp_exception("Unsupported decompression.");
+
+        mstream.zalloc   = Z_NULL;
+        mstream.zfree    = Z_NULL;
+        mstream.opaque   = Z_NULL;
+        mstream.avail_in = 0;
+        mstream.next_in  = Z_NULL;
+
+        if (mz_inflateInit(&mstream) != Z_OK)
+            throw libevp::evp_exception("Failed to init inflate stream.");
+    }
 
     do {
         left_to_read -= read_count;
 
-        int res = zlib_decompress_block(mstream, read_buf.data(),
-            read_count, decomp_buf.data(), ZLIB_OUT_CHUNK_SIZE, cb);
+        if (obfuscation.compressed) {
+            int res = zlib_decompress_block(mstream, read_buf.data(),
+                read_count, decomp_buf.data(), ZLIB_OUT_CHUNK_SIZE, cb);
 
-        if (res == Z_STREAM_END)
-            break;
+            if (res == Z_STREAM_END)
+                break;
 
-        if (res != 0) {
-            mz_inflateEnd(&mstream);
-            throw libevp::evp_exception("Failed during decompress.");
+            if (res != 0) {
+                mz_inflateEnd(&mstream);
+                throw libevp::evp_exception("Failed during decompress.");
+            }
+        }
+        else {
+            cb(read_buf.data(), read_count);
         }
 
         read_count = (uint32_t)std::min(left_to_read, ZLIB_IN_CHUNK_SIZE);
         stream.read(read_buf.data(), read_count);
+
     } while (left_to_read > 0);
 
-    if (mstream.total_in != size) {
-        mz_inflateEnd(&mstream);
-        throw libevp::evp_exception("Failed to decompress whole block.");
-    }
+    if (obfuscation.compressed) {
+        if (mstream.total_in != obfuscation.compressed_size) {
+            mz_inflateEnd(&mstream);
+            throw libevp::evp_exception("Failed to decompress. Input not fully read.");
+        }
 
-    mz_inflateEnd(&mstream);
+        if (mstream.total_out != obfuscation.decompressed_size) {
+            mz_inflateEnd(&mstream);
+            throw libevp::evp_exception("Failed to decompress. Output size wrong.");
+        }
+
+        mz_inflateEnd(&mstream);
+    }
 }
 
 void decode_block(uint8_t* block, uint32_t block_size) {

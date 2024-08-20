@@ -234,7 +234,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<u
 }
 
 evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::stringstream& stream) {
-    std::vector<uint8_t> buffer;
+    buffer_t buffer;
 
     auto result = get_file(evp, fd, buffer);
     if (!result)
@@ -298,7 +298,7 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::v
 }
 
 evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream) {
-    std::vector<uint8_t> buffer;
+    buffer_t buffer;
 
     auto result = get_file(evp, file, buffer);
     if (!result)
@@ -493,8 +493,8 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
     context.invoke_start();
 
-    std::vector<uint8_t> buffer{};
-    buffer.resize(EVP_BUFFER_SIZE);
+    buffer_t buffer{};
+    buffer.resize(EVP_READ_CHUNK_SIZE);
 
     format.write_format_desc(stream);
 
@@ -538,21 +538,23 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         uint32_t left_to_read = fd.data_size;
 
         while (left_to_read > 0) {
-            uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
-
+            // read file chunk
+            uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_READ_CHUNK_SIZE);
             read_stream.read(buffer.data(), read_count);
-            auto pos = stream.pos();
+            
+            // write file chunk to archive
             stream.write(buffer.data(), read_count);
 
+            // compute chunk MD5
             md5.add(buffer.data(), read_count);
 
             left_to_read -= read_count;
         }
 
+        // compute file MD5
         MD5_hex_string_to_bytes(md5, fd.hash.data());
 
         format.desc_block->files.push_back(fd);
-
         context.invoke_update(prog_change);
     }
 

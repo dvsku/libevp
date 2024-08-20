@@ -626,9 +626,6 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
 
     context.invoke_start();
 
-    std::vector<uint8_t> buffer{};
-    buffer.resize(EVP_BUFFER_SIZE);
-
     for (evp_fd& fd : format->desc_block->files) {
         if (context.is_cancelled()) {
             context.invoke_cancel();
@@ -655,17 +652,9 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
             return result;
         }
 
-        stream.seek(fd.data_offset, std::ios::beg);
-        
-        uint32_t left_to_read = fd.data_size;
-        while (left_to_read > 0) {
-            uint32_t read_count = (uint32_t)std::min(left_to_read, EVP_BUFFER_SIZE);
-
-            stream.read(buffer.data(), read_count);
-            out_stream.write(buffer.data(), read_count);
-
-            left_to_read -= read_count;
-        }
+        format->read_file_data(stream, fd, [&](uint8_t* data, uint32_t size) {
+            out_stream.write(data, size);
+        });
 
         context.invoke_update(prog_change);
     }

@@ -35,9 +35,5 @@ namespace libevp::format::v2 {
         void read_format_desc(libevp::fstream_read& stream)                                        override final;
         void read_file_desc_block(libevp::fstream_read& stream)                                    override final;
         void read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb = nullptr) override final;
-
-    private:
-        void decode_file_desc_block(libevp::fstream_read& stream, std::vector<uint8_t>& buffer);
-        void decompress_file_desc_block(std::vector<uint8_t>& input, std::vector<uint8_t>& output);
     };
 }

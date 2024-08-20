@@ -1,12 +1,22 @@
 #include "libevp/format/format_v2.hpp"
 #include "libevp/stream/stream_write.hpp"
 #include "libevp/misc/evp_exception.hpp"
+#include "libevp/defs.hpp"
 
 #include <miniz/miniz.h>
 #include <array>
 
 ////////////////////////////////////////////////////////////////////////////////
 // INTERNAL
+
+// TEA encoded size
+constexpr uint32_t TEA_CHUNK_SIZE = 64;
+
+// zlib input buffer size (same as non-obfuscated input size)
+constexpr uint32_t ZLIB_IN_CHUNK_SIZE = libevp::EVP_READ_CHUNK_SIZE;
+
+// zlib decompress buffer size
+constexpr uint32_t ZLIB_OUT_CHUNK_SIZE = ZLIB_IN_CHUNK_SIZE * 4;
 
 constexpr uint8_t HEADER[56] = {
     0x35, 0x32, 0x35, 0x63, 0x31, 0x37, 0x61, 0x36, 0x61, 0x37, 0x63, 0x66, 0x62, 0x63,
@@ -21,9 +31,38 @@ constexpr uint8_t KEY[] = {
 };
 
 /*
-    TEA algorithm decode
+    Read obfuscated block.
+    First 64 bytes of the block are encoded and they hide the compression algorithm header.
+    After decoding, the block can be decompressed.
+
+    Possible encodings:
+      - TEA
+
+    Possible compressions:
+      - zlib
 */
-static void internal_decode(uint8_t input[8], uint8_t output[8], uint32_t* key);
+static void read_obfuscated_block(libevp::fstream_read& stream, uint32_t size, libevp::format::format::data_read_cb_t cb);
+
+/*
+    Decode 64 bytes of the block.
+*/
+static void decode_block(uint8_t* block, uint32_t block_size);
+
+/*
+    Check for zlib magic.
+*/
+static bool zlib_check_magic(uint8_t* data, uint32_t size);
+
+/*
+    Decompress zlib block.
+*/
+static int zlib_decompress_block(mz_stream& stream, uint8_t* src, uint32_t src_size,
+    uint8_t* dst, uint32_t dst_size, libevp::format::format::data_read_cb_t cb);
+
+/*
+    TEA algorithm decode.
+*/
+static void TEA_decode(uint8_t input[8], uint8_t output[8], uint32_t* key);
 
 ////////////////////////////////////////////////////////////////////////////////
 // PUBLIC
@@ -70,56 +109,50 @@ void libevp::format::v2::format::read_file_desc_block(libevp::fstream_read& stre
     if (block->size == block->compressed_size)
         throw evp_exception("Not implemented: File desc block not compressed.");
 
-    std::vector<uint8_t> decompressed_buffer = {};
+    buffer_t buffer = {};
 
-    {
-        std::vector<uint8_t> compressed_buffer = {};
+    read_obfuscated_block(stream, block->compressed_size, [&](uint8_t* data, uint32_t size) {
+        buffer.insert(buffer.end(), data, data + size);
+    });
 
-        decode_file_desc_block(stream, compressed_buffer);
-        uint32_t decoded_size = (uint32_t)compressed_buffer.size();
+    if ((uint32_t)buffer.size() != block->size)
+        throw evp_exception("File desc block decompressed size mismatch.");
 
-        compressed_buffer.resize(block->compressed_size);
-        stream.read(compressed_buffer.data() + decoded_size, block->compressed_size - decoded_size);
+    stream_read block_stream(buffer);
 
-        decompressed_buffer.resize(block->size);
-        decompress_file_desc_block(compressed_buffer, decompressed_buffer);
-    }
-
-    stream_read decompressed_stream(decompressed_buffer);
-
-    block->region_name_size = decompressed_stream.read<uint32_t>();
-    block->region_name      = decompressed_stream.read(block->region_name_size);
-    block->_unk_1           = decompressed_stream.read<uint32_t>();
-    block->_unk_2           = decompressed_stream.read<uint32_t>();
-    block->_unk_3           = decompressed_stream.read<uint32_t>();
+    block->region_name_size = block_stream.read<uint32_t>();
+    block->region_name      = block_stream.read(block->region_name_size);
+    block->_unk_1           = block_stream.read<uint32_t>();
+    block->_unk_2           = block_stream.read<uint32_t>();
+    block->_unk_3           = block_stream.read<uint32_t>();
 
     for (uint64_t i = 0; i < file_count; i++) {
         evp_fd fd;
 
         // name size
-        uint32_t name_size = decompressed_stream.read<uint32_t>();
+        uint32_t name_size = block_stream.read<uint32_t>();
 
         // name
-        fd.file = decompressed_stream.read(name_size);
+        fd.file = block_stream.read(name_size);
         std::replace(fd.file.begin(), fd.file.end(), '\\', '/');
 
         // data offset
-        fd.data_offset = decompressed_stream.read<uint32_t>();
+        fd.data_offset = block_stream.read<uint32_t>();
 
         // compressed data size
-        fd.data_compressed_size = decompressed_stream.read<uint32_t>();
+        fd.data_compressed_size = block_stream.read<uint32_t>();
 
         // data size
-        fd.data_size = decompressed_stream.read<uint32_t>();
+        fd.data_size = block_stream.read<uint32_t>();
 
         // flags
-        fd.flags = decompressed_stream.read<uint32_t>();
+        fd.flags = block_stream.read<uint32_t>();
 
         // unidentified
-        decompressed_stream.seek(0x8);
+        block_stream.seek(0x8);
 
         // hash
-        decompressed_stream.read(fd.hash.data(), (uint32_t)fd.hash.size());
+        block_stream.read(fd.hash.data(), (uint32_t)fd.hash.size());
 
         block->files.push_back(fd);
     }
@@ -132,66 +165,138 @@ void libevp::format::v2::format::read_file_data(libevp::fstream_read& stream, ev
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// PRIVATE
+// INTERNAL
 
-void libevp::format::v2::format::decode_file_desc_block(libevp::fstream_read& stream, std::vector<uint8_t>& buffer) {
-    file_desc_block_ptr_t block       = static_pointer_cast<file_desc_block>(desc_block);
-    uint32_t              decode_size = 64;
+void read_obfuscated_block(libevp::fstream_read& stream, uint32_t size, libevp::format::format::data_read_cb_t cb) {
+    libevp::buffer_t read_buf = {};
+    read_buf.resize(ZLIB_IN_CHUNK_SIZE);
 
-    if (decode_size >= block->compressed_size) {
-        decode_size  =  block->compressed_size;
-        decode_size -=  1;
-        decode_size &= -8;
+    libevp::buffer_t decomp_buf = {};
+    decomp_buf.resize(ZLIB_OUT_CHUNK_SIZE);
+
+    uint32_t left_to_read = size;
+    uint32_t read_count   = 0U;
+
+    /*
+        Read first chunk
+    */
+
+    read_count = (uint32_t)std::min(left_to_read, ZLIB_IN_CHUNK_SIZE);
+    stream.read(read_buf.data(), read_count);
+
+    if (zlib_check_magic(read_buf.data(), read_count))
+        throw libevp::evp_exception("Non-encoded stream. Not implemented.");
+
+    /*
+        Decode TEA chunk
+    */
+
+    decode_block(read_buf.data(), read_count);
+
+    if (!zlib_check_magic(read_buf.data(), read_count))
+        throw libevp::evp_exception("Unsupported decoding/decompressing.");
+
+    mz_stream mstream{};
+    mstream.zalloc   = Z_NULL;
+    mstream.zfree    = Z_NULL;
+    mstream.opaque   = Z_NULL;
+    mstream.avail_in = 0;
+    mstream.next_in  = Z_NULL;
+
+    if (mz_inflateInit(&mstream) != Z_OK)
+        throw libevp::evp_exception("Failed to init inflate stream.");
+
+    do {
+        left_to_read -= read_count;
+
+        int res = zlib_decompress_block(mstream, read_buf.data(),
+            read_count, decomp_buf.data(), ZLIB_OUT_CHUNK_SIZE, cb);
+
+        if (res == Z_STREAM_END)
+            break;
+
+        if (res != 0) {
+            mz_inflateEnd(&mstream);
+            throw libevp::evp_exception("Failed during decompress.");
+        }
+
+        read_count = (uint32_t)std::min(left_to_read, ZLIB_IN_CHUNK_SIZE);
+        stream.read(read_buf.data(), read_count);
+    } while (left_to_read > 0);
+
+    if (mstream.total_in != size) {
+        mz_inflateEnd(&mstream);
+        throw libevp::evp_exception("Failed to decompress whole block.");
     }
+
+    mz_inflateEnd(&mstream);
+}
+
+void decode_block(uint8_t* block, uint32_t block_size) {
+    if (block_size < TEA_CHUNK_SIZE)
+        throw libevp::evp_exception("Decode block too small.");
 
     uint32_t key[4] = {};
     memcpy(key, &KEY, 16);
 
-    for (int i = 0; decode_size > 0; i++) {
-        uint32_t read_count = std::min(decode_size, (uint32_t)8);
-        uint8_t  input[8]   = {};
-        uint8_t  output[8]  = {};
-
-        stream.read(input, read_count);
-        internal_decode(input, output, key);
-
-        /*
-            Check for zlib magic.
-            Exception thrown if key was changed or compression is not zlib.
-        */
-
-        if (i == 0) {
-            if (output[0] != 0x78)
-                throw evp_exception("Wrong decode key or unsupported compression.");
-
-            if (output[1] != 0x01 && output[1] != 0x5E && output[1] != 0x9C && output[1] != 0xDA)
-                throw evp_exception("Wrong decode key or unsupported compression.");
-        }
-
-        buffer.insert(buffer.end(), output, output + read_count);
-        decode_size -= read_count;
+    for (int i = 0; i < TEA_CHUNK_SIZE / 8; i++) {
+        TEA_decode(block + (i * 8), block + (i * 8), key);
     }
 }
 
-void libevp::format::v2::format::decompress_file_desc_block(std::vector<uint8_t>& input, std::vector<uint8_t>& output) {
-    file_desc_block_ptr_t block = static_pointer_cast<file_desc_block>(desc_block);
+bool zlib_check_magic(uint8_t* data, uint32_t size) {
+    if (size < 2) return false;
 
-    mz_ulong decompressed_size = static_cast<mz_ulong>(block->size);
+    if (data[0] != 0x78)
+        return false;
 
-    int code = mz_uncompress(output.data(), &decompressed_size, input.data(),
-        static_cast<mz_ulong>(block->compressed_size));
+    if (data[1] != 0x01 && data[1] != 0x5E && data[1] != 0x9C && data[1] != 0xDA)
+        return false;
 
-    if (code != MZ_OK)
-        throw evp_exception("Unsupported compression.");
-
-    if (block->size != decompressed_size)
-        throw evp_exception("Unsupported compression.");
+    return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// INTERNAL
+/*
+    Adapted from zlib examples.
+    https://github.com/madler/zlib/blob/51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf/examples/zpipe.c#L92
+*/
+int zlib_decompress_block(mz_stream& stream, uint8_t* src, uint32_t src_size,
+    uint8_t* dst, uint32_t dst_size, libevp::format::format::data_read_cb_t cb)
+{
+    if (src_size == 0)
+        return Z_DATA_ERROR;
 
-void internal_decode(uint8_t input[8], uint8_t output[8], uint32_t* key) {
+    int      retval            = 0;
+    uint32_t decompressed_size = 0U;
+
+    stream.avail_in = src_size;
+    stream.next_in  = src;
+
+    do {
+        stream.avail_out = dst_size;
+        stream.next_out  = dst;
+
+        retval = inflate(&stream, Z_NO_FLUSH);
+        if (retval == Z_STREAM_ERROR)
+            return retval;
+
+        switch (retval) {
+            case Z_NEED_DICT:
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+                return retval;
+
+            default: break;
+        }
+
+        decompressed_size = dst_size - stream.avail_out;
+        cb(dst, decompressed_size);
+    } while (stream.avail_out == 0 || stream.avail_in > 0);
+
+    return retval;
+}
+
+void TEA_decode(uint8_t input[8], uint8_t output[8], uint32_t* key) {
     uint32_t delta  = 0x9E3779B9;
     uint32_t sum    = 0xC6EF3720;
     uint32_t cycles = 32;

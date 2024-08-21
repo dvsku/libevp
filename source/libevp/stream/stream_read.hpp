@@ -3,6 +3,7 @@
 #include "libevp/type_traits.hpp"
 
 #include <string>
+#include <cstring>
 #include <memory>
 #include <vector>
 #include <fstream>

@@ -265,13 +265,17 @@ void read_obfuscated_block(libevp::fstream_read& stream, obfuscation& obfuscatio
 }
 
 void decode_block(uint8_t* block, uint32_t block_size) {
-    if (block_size < TEA_CHUNK_SIZE)
-        throw libevp::evp_exception("Decode block too small.");
+    uint32_t decode_size = TEA_CHUNK_SIZE;
+
+    if (TEA_CHUNK_SIZE >= block_size) {
+        decode_size  = block_size - 1;
+        decode_size &= -8;
+    }
 
     uint32_t key[4] = {};
     memcpy(key, &KEY, 16);
 
-    for (int i = 0; i < TEA_CHUNK_SIZE / 8; i++) {
+    for (int i = 0; i < decode_size / 8; i++) {
         TEA_decode(block + (i * 8), block + (i * 8), key);
     }
 }

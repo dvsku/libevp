@@ -52,7 +52,7 @@ struct obfuscation {
     Possible compressions:
       - zlib
 */
-static void read_obfuscated_block(libevp::fstream_read& stream, obfuscation obfuscation,
+static void read_obfuscated_block(libevp::fstream_read& stream, obfuscation& obfuscation,
     libevp::format::format::data_read_cb_t cb);
 
 /*
@@ -188,7 +188,7 @@ void libevp::format::v2::format::read_file_data(libevp::fstream_read& stream, ev
 ////////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 
-void read_obfuscated_block(libevp::fstream_read& stream, obfuscation obfuscation, libevp::format::format::data_read_cb_t cb) {
+void read_obfuscated_block(libevp::fstream_read& stream, obfuscation& obfuscation, libevp::format::format::data_read_cb_t cb) {
     libevp::buffer_t read_buf = {};
     read_buf.resize(ZLIB_IN_CHUNK_SIZE);
 

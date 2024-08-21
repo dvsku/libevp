@@ -175,8 +175,6 @@ void libevp::format::v2::format::read_file_desc_block(libevp::fstream_read& stre
 
         block->files.push_back(fd);
     }
-
-    return;
 }
 
 void libevp::format::v2::format::read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb) {
@@ -287,7 +285,7 @@ void decode_block(uint8_t* block, uint32_t block_size) {
     uint32_t key[4] = {};
     memcpy(key, &KEY, 16);
 
-    for (int i = 0; i < decode_size / 8; i++) {
+    for (uint32_t i = 0; i < decode_size / 8; i++) {
         TEA_decode(block + (i * 8), block + (i * 8), key);
     }
 }

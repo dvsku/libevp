@@ -45,7 +45,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         packed successfully;
-         *      status == evp_result_status::error      an error occurred during packing, message contains details;
+         *      status == evp_result_status::failure    an error occurred during packing, message contains details;
         */
         LIBEVP_API evp_result pack(const dir_path_t& input_dir, const file_path_t& evp,
             evp_filter filter = evp_filter::none);
@@ -58,7 +58,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
-         *      status == evp_result_status::error      an error occurred during unpacking, message contains details;
+         *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result unpack(const file_path_t& evp, const dir_path_t& output_dir);
 
@@ -94,7 +94,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         all files successfully validated;
-         *      status == evp_result_status::error      an error occurred, message contains details;
+         *      status == evp_result_status::failure    an error occurred, message contains details;
         */
         LIBEVP_API evp_result validate_files(const file_path_t& evp, std::vector<evp_fd>* failed_fds = nullptr);
 
@@ -106,7 +106,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         got files successfully;
-         *      status == evp_result_status::error      an error occurred, message contains details;
+         *      status == evp_result_status::failure    an error occurred, message contains details;
         */
         LIBEVP_API evp_result get_files(const file_path_t& evp, std::vector<evp_fd>& files);
 
@@ -119,7 +119,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
-         *      status == evp_result_status::error      an error occurred during unpacking, message contains details;
+         *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result get_file(const file_path_t& evp, const evp_fd& fd, std::vector<uint8_t>& buffer);
 
@@ -132,7 +132,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
-         *      status == evp_result_status::error      an error occurred during unpacking, message contains details;
+         *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result get_file(const file_path_t& evp, const evp_fd& fd, std::stringstream& stream);
 
@@ -145,7 +145,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
-         *      status == evp_result_status::error      an error occurred during unpacking, message contains details;
+         *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result get_file(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer);
 
@@ -158,7 +158,7 @@ namespace libevp {
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
-         *      status == evp_result_status::error      an error occurred during unpacking, message contains details;
+         *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream);
 

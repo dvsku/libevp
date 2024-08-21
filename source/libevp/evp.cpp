@@ -348,7 +348,8 @@ evp_result determine_format(fstream_read& stream, std::shared_ptr<libevp::format
     result.status = evp_result::status::failure;
 
     std::shared_ptr<libevp::format::format> supported_formats[] = {
-        static_pointer_cast<libevp::format::format>(std::make_shared<libevp::format::v1::format>())
+        static_pointer_cast<libevp::format::format>(std::make_shared<libevp::format::v1::format>()),
+        static_pointer_cast<libevp::format::format>(std::make_shared<libevp::format::v2::format>()),
     };
 
     for (std::shared_ptr<libevp::format::format> supported_format : supported_formats) {

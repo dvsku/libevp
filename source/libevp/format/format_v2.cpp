@@ -211,6 +211,12 @@ void read_obfuscated_block(libevp::fstream_read& stream, obfuscation& obfuscatio
 
     mz_stream mstream{};
 
+    /*
+        Detect compression that was not obvious by the size difference.
+    */
+    if (!obfuscation.compressed && zlib_check_magic(read_buf.data(), read_count))
+        obfuscation.compressed = true;
+
     if (obfuscation.compressed) {
         if (!zlib_check_magic(read_buf.data(), read_count))
             throw libevp::evp_exception("Unsupported decompression.");

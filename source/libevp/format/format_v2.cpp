@@ -179,10 +179,15 @@ void libevp::format::v2::format::read_file_desc_block(libevp::fstream_read& stre
 }
 
 void libevp::format::v2::format::read_file_data(libevp::fstream_read& stream, evp_fd& fd, data_read_cb_t cb) {
-    if (fd.flags & 4 && fd.data_size == fd.data_compressed_size)
-        return;
-        //throw evp_exception("Not implemented.");
-    
+    obfuscation obfuscation       = {};
+    obfuscation.encoded           = fd.flags & 4;
+    obfuscation.compressed        = fd.data_size != fd.data_compressed_size;
+    obfuscation.compressed_size   = fd.data_compressed_size;
+    obfuscation.decompressed_size = fd.data_size;
+
+    stream.seek(fd.data_offset, std::ios::beg);
+
+    read_obfuscated_block(stream, obfuscation, cb);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

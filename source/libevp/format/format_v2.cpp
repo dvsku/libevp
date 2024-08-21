@@ -101,7 +101,8 @@ void libevp::format::v2::format::read_format_desc(libevp::fstream_read& stream) 
     _unk_1                 = stream.read<uint32_t>();
 
     switch (format_type) {
-        case format::type::v207_1: break;
+        case format::type::v101: break;
+        case format::type::v102: break;
         default: return;
     }
 

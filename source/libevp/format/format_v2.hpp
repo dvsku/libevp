@@ -22,7 +22,8 @@ namespace libevp::format::v2 {
 
         enum class type : uint32_t {
             undefined = 0x00000000,
-            v207_1    = 0x00000065
+            v101      = 0x00000065,
+            v102      = 0x00000066
         };
 
     public:

@@ -38,7 +38,7 @@ void libevp::format::v1::format::read_format_desc(libevp::fstream_read& stream) 
     _unk_1                 = stream.read<uint32_t>();
 
     switch (format_type) {
-        case format::type::v207: break;
+        case format::type::v100: break;
         default: return;
     }
 
@@ -112,7 +112,7 @@ void libevp::format::v1::format::write_format_desc(libevp::fstream_write& stream
     stream.seek(0, std::ios::beg);
 
     stream.write((uint8_t*)HEADER, (uint32_t)sizeof(HEADER));
-    stream.write(format::type::v207);
+    stream.write(format::type::v100);
     stream.write(file_desc_block_offset);
     stream.write(file_desc_block_size);
     stream.write(file_count);

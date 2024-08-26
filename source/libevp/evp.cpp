@@ -171,7 +171,7 @@ evp_result evp::validate_files(const file_path_t& evp, std::vector<evp_fd>* fail
     return result;
 }
 
-evp_result evp::get_files(const file_path_t& evp, std::vector<evp_fd>& files) {
+evp_result evp::get_archive_fds(const file_path_t& evp, std::vector<evp_fd>& files) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 

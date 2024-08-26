@@ -108,7 +108,7 @@ namespace libevp {
          *      status == evp_result_status::ok         got files successfully;
          *      status == evp_result_status::failure    an error occurred, message contains details;
         */
-        LIBEVP_API evp_result get_files(const file_path_t& evp, std::vector<evp_fd>& files);
+        LIBEVP_API evp_result get_archive_fds(const file_path_t& evp, std::vector<evp_fd>& files);
 
         /*
          *  Unpack a single file from .evp archive into a buffer.

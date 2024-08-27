@@ -1,6 +1,6 @@
 #pragma once
 
-#include <libevp/evp_result.hpp>
+#include <libevp/model/evp_result.hpp>
 
 #include <functional>
 #include <atomic>

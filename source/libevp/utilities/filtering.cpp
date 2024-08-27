@@ -1,5 +1,4 @@
 #include "filtering.hpp"
-#include "libevp.hpp"
 
 using namespace libevp;
 

@@ -30,12 +30,12 @@ static evp_result determine_format(fstream_read& stream, std::shared_ptr<libevp:
 /*
     Validate that input is an EVP archive.
 */
-static evp_result validate_evp_archive(const std::filesystem::path& input, bool existing);
+static evp_result validate_evp_archive(const FILE_PATH& input, bool existing);
 
 /*
     Validate that input is a directory.
 */
-static evp_result validate_directory(const std::filesystem::path& input);
+static evp_result validate_directory(const DIR_PATH& input);
 
 /*
     Convert MD5 string to bytes
@@ -48,7 +48,7 @@ static void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes);
 namespace libevp {
     class evp_impl {
     public:
-        static evp_result pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
+        static evp_result pack_impl(DIR_PATH input, FILE_PATH evp,
             evp_context_internal& context, evp_filter filter = evp_filter::none);
 
         static evp_result unpack_impl(FILE_PATH evp, DIR_PATH output,
@@ -213,7 +213,7 @@ evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uin
         return result;
     }
 
-    fstream_read stream(evp.string());
+    fstream_read stream(evp);
     if (!stream.is_valid()) {
         result.message = "Failed to open file.";
         return result;
@@ -256,7 +256,7 @@ evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vecto
         return result;
     }
 
-    fstream_read stream(evp.string());
+    fstream_read stream(evp);
     if (!stream.is_valid()) {
         result.message = "Failed to open file.";
         return result;
@@ -365,7 +365,7 @@ evp_result determine_format(fstream_read& stream, std::shared_ptr<libevp::format
     return result;
 }
 
-evp_result validate_evp_archive(const std::filesystem::path& input, bool existing) {
+evp_result validate_evp_archive(const FILE_PATH& input, bool existing) {
     evp_result result;
     result.status = evp_result::status::failure;
 
@@ -401,7 +401,7 @@ evp_result validate_evp_archive(const std::filesystem::path& input, bool existin
     return result;
 }
 
-evp_result validate_directory(const std::filesystem::path& input) {
+evp_result validate_directory(const DIR_PATH& input) {
     evp_result result;
     result.status = evp_result::status::failure;
 
@@ -439,7 +439,7 @@ void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes) {
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
-evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
+evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
     evp_context_internal& context, evp_filter filter)
 {
     evp_result result, res;
@@ -448,14 +448,11 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
 
-    std::filesystem::path input  = input_dir;
-    std::filesystem::path output = evp;
-
     if (!input.is_absolute())
         input = std::filesystem::absolute(input);
 
-    if (!output.is_absolute())
-        output = std::filesystem::absolute(output);
+    if (!evp.is_absolute())
+        evp = std::filesystem::absolute(evp);
 
     res = validate_directory(input);
     if (!res) {
@@ -465,7 +462,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
         return result;
     }
 
-    res = validate_evp_archive(output, false);
+    res = validate_evp_archive(evp, false);
     if (!res) {
         result.message = res.message;
 
@@ -478,7 +475,7 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
 
     format::v1::format format;
 
-    fstream_write stream(output);
+    fstream_write stream(evp);
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
@@ -609,7 +606,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
     ///////////////////////////////////////////////////////////////////////////
     // UNPACK
 
-    fstream_read stream(evp.string());
+    fstream_read stream(evp);
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 

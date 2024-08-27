@@ -6,14 +6,8 @@
 #include <libevp/model/evp_result.hpp>
 #include <libevp/model/evp_filter.hpp>
 
-#include <filesystem>
-
 namespace libevp {
     class evp {
-    public:
-        using dir_path_t  = std::filesystem::path;
-        using file_path_t = std::filesystem::path;
-
     public:
         evp()           = default;
         evp(const evp&) = delete;
@@ -25,7 +19,7 @@ namespace libevp {
     public:
 
         /*
-         *  Packs files in dir into a .evp archive
+         *  Packs files in dir into a .evp archive.
          *
          *  @param input_dir    -> dir path containing files to pack
          *  @param evp          -> file path where to save the created .evp archive
@@ -38,11 +32,11 @@ namespace libevp {
          *      status == evp_result_status::ok         packed successfully;
          *      status == evp_result_status::failure    an error occurred during packing, message contains details;
         */
-        LIBEVP_API evp_result pack(const dir_path_t& input_dir, const file_path_t& evp,
+        LIBEVP_API evp_result pack(const DIR_PATH& input_dir, const FILE_PATH& evp,
             evp_filter filter = evp_filter::none);
 
         /*
-         *  Unpacks .evp archive contents into a dir
+         *  Unpacks .evp archive contents into a dir.
          *
          *  @param evp          -> file path to .evp archive
          *  @param output_dir   -> dir path where to save unpacked files
@@ -51,10 +45,10 @@ namespace libevp {
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result unpack(const file_path_t& evp, const dir_path_t& output_dir);
+        LIBEVP_API evp_result unpack(const FILE_PATH& evp, const DIR_PATH& output_dir);
 
         /*
-         *  Asynchronously packs files in dir into a .evp archive
+         *  Asynchronously packs files in dir into a .evp archive.
          *
          *  @param input_dir    -> dir path containing files to pack
          *  @param evp          -> file path where to save the created .evp archive
@@ -65,17 +59,17 @@ namespace libevp {
          *
          *  @param context -> pointer to context that has callbacks
         */
-        LIBEVP_API void pack_async(const dir_path_t& input_dir, const file_path_t& evp,
+        LIBEVP_API void pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp,
             evp_filter filter = evp_filter::none, evp_context* context = nullptr);
 
         /*
-         *  Asynchronously unpacks .evp archive contents into a dir
+         *  Asynchronously unpacks .evp archive contents into a dir.
          *
          *  @param evp          -> file path to .evp archive
          *  @param output_dir   -> dir path where to save unpacked files
          *  @param context      -> pointer to context that has callbacks
         */
-        LIBEVP_API void unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context = nullptr);
+        LIBEVP_API void unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, evp_context* context = nullptr);
 
         /*
          *  Validate files packed inside .evp archive.
@@ -87,7 +81,7 @@ namespace libevp {
          *      status == evp_result_status::ok         all files successfully validated;
          *      status == evp_result_status::failure    an error occurred, message contains details;
         */
-        LIBEVP_API evp_result validate_files(const file_path_t& evp, std::vector<evp_fd>* failed_fds = nullptr);
+        LIBEVP_API evp_result validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed_fds = nullptr);
 
         /*
          *  Get file fds packed inside .evp archive.
@@ -99,7 +93,7 @@ namespace libevp {
          *      status == evp_result_status::ok         got files successfully;
          *      status == evp_result_status::failure    an error occurred, message contains details;
         */
-        LIBEVP_API evp_result get_archive_fds(const file_path_t& evp, std::vector<evp_fd>& files);
+        LIBEVP_API evp_result get_archive_fds(const FILE_PATH& evp, std::vector<evp_fd>& files);
 
         /*
          *  Unpack a single file from .evp archive into a buffer.
@@ -112,7 +106,7 @@ namespace libevp {
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result get_file(const file_path_t& evp, const evp_fd& fd, std::vector<uint8_t>& buffer);
+        LIBEVP_API evp_result get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uint8_t>& buffer);
 
         /*
          *  Unpack a single file from .evp archive into a stringstream.
@@ -125,7 +119,7 @@ namespace libevp {
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result get_file(const file_path_t& evp, const evp_fd& fd, std::stringstream& stream);
+        LIBEVP_API evp_result get_file(const FILE_PATH& evp, const evp_fd& fd, std::stringstream& stream);
 
         /*
          *  Unpack a single file from .evp archive into a buffer.
@@ -138,7 +132,7 @@ namespace libevp {
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result get_file(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer);
+        LIBEVP_API evp_result get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vector<uint8_t>& buffer);
 
         /*
          *  Unpack a single file from .evp archive into a stringstream.
@@ -151,6 +145,6 @@ namespace libevp {
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream);
+        LIBEVP_API evp_result get_file(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream);
     };
 }

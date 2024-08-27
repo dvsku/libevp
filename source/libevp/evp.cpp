@@ -58,7 +58,7 @@ namespace libevp {
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
-evp_result evp::pack(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter) {
+evp_result evp::pack(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter filter) {
     try {
         evp_context_internal context_internal(nullptr);
         return evp_impl::pack_impl(input_dir, evp, context_internal, filter);
@@ -72,7 +72,7 @@ evp_result evp::pack(const dir_path_t& input_dir, const file_path_t& evp, evp_fi
     }
 }
 
-evp_result evp::unpack(const file_path_t& evp, const dir_path_t& output_dir) {
+evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir) {
     try {
         evp_context_internal context_internal(nullptr);
         return evp_impl::unpack_impl(evp, output_dir, context_internal);
@@ -86,7 +86,7 @@ evp_result evp::unpack(const file_path_t& evp, const dir_path_t& output_dir) {
     }
 }
 
-void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_filter filter, evp_context* context) {
+void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter filter, evp_context* context) {
     std::thread t([input_dir, evp, filter, context] {
         evp_context_internal context_internal(context);
 
@@ -104,7 +104,7 @@ void evp::pack_async(const dir_path_t& input_dir, const file_path_t& evp, evp_fi
     t.detach();
 }
 
-void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp_context* context) {
+void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, evp_context* context) {
     std::thread t([evp, output_dir, context] {
         evp_context_internal context_internal(context);
 
@@ -122,7 +122,7 @@ void evp::unpack_async(const file_path_t& evp, const dir_path_t& output_dir, evp
     t.detach();
 }
 
-evp_result evp::validate_files(const file_path_t& evp, std::vector<evp_fd>* failed_fds) {
+evp_result evp::validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed_fds) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
@@ -171,7 +171,7 @@ evp_result evp::validate_files(const file_path_t& evp, std::vector<evp_fd>* fail
     return result;
 }
 
-evp_result evp::get_archive_fds(const file_path_t& evp, std::vector<evp_fd>& files) {
+evp_result evp::get_archive_fds(const FILE_PATH& evp, std::vector<evp_fd>& files) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
@@ -202,7 +202,7 @@ evp_result evp::get_archive_fds(const file_path_t& evp, std::vector<evp_fd>& fil
     return result;
 }
 
-evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<uint8_t>& buffer) {
+evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uint8_t>& buffer) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
@@ -233,7 +233,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::vector<u
     return result;
 }
 
-evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::stringstream& stream) {
+evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::stringstream& stream) {
     buffer_t buffer;
 
     auto result = get_file(evp, fd, buffer);
@@ -245,7 +245,7 @@ evp_result evp::get_file(const file_path_t& evp, const evp_fd& fd, std::stringst
     return result;
 }
 
-evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::vector<uint8_t>& buffer) {
+evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vector<uint8_t>& buffer) {
     evp_result result, res;
     result.status = evp_result::status::failure;
     
@@ -297,7 +297,7 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::v
     return result;
 }
 
-evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream) {
+evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream) {
     buffer_t buffer;
 
     auto result = get_file(evp, file, buffer);

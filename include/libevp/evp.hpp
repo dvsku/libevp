@@ -1,17 +1,6 @@
 #pragma once
 
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-    #if defined LIBEVP_DLL
-        #define LIBEVP_API __declspec(dllexport)
-    #else
-        #define LIBEVP_API
-    #endif
-#else
-    #define LIBEVP_API 
-#endif
-
-#include <libevp/evp_filter.hpp>
-#include <libevp/evp_result.hpp>
+#include <libevp/evp_defs.hpp>
 #include <libevp/evp_context.hpp>
 #include <libevp/model/evp_fd.hpp>
 #include <libevp/model/evp_result.hpp>

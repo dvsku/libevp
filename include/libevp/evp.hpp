@@ -152,15 +152,5 @@ namespace libevp {
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
         LIBEVP_API evp_result get_file(const file_path_t& evp, const file_path_t& file, std::stringstream& stream);
-
-        /*
-         *  Get filtered files
-         *
-         *  @param input    -> input dir
-         *  @param filter   -> filter
-         *
-         *  @returns std::vector<file_path_t> -> filtered files
-        */
-        LIBEVP_API std::vector<file_path_t> get_filtered_files(const dir_path_t& input, evp_filter filter);
     };
 }

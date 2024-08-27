@@ -309,10 +309,6 @@ evp_result evp::get_file(const file_path_t& evp, const file_path_t& file, std::s
     return result;
 }
 
-std::vector<evp::file_path_t> evp::get_filtered_files(const dir_path_t& input, evp_filter filter) {
-    return filtering::get_filtered_paths(input, filter);
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // INTERNAL
 

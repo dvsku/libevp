@@ -10,6 +10,7 @@
 
 #include <thread>
 #include <vector>
+#include <unordered_set>
 
 using namespace libevp;
 
@@ -50,8 +51,8 @@ namespace libevp {
         static evp_result pack_impl(const std::filesystem::path& input_dir, const std::filesystem::path& evp,
             evp_context_internal& context, evp_filter filter = evp_filter::none);
 
-        static evp_result unpack_impl(const std::filesystem::path& evp, const std::filesystem::path& output_dir,
-            evp_context_internal& context);
+        static evp_result unpack_impl(FILE_PATH evp, DIR_PATH output,
+            std::vector<evp_fd>* fds, evp_context_internal& context);
     };
 }
 
@@ -72,10 +73,10 @@ evp_result evp::pack(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter
     }
 }
 
-evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir) {
+evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir, std::vector<evp_fd>* fds) {
     try {
         evp_context_internal context_internal(nullptr);
-        return evp_impl::unpack_impl(evp, output_dir, context_internal);
+        return evp_impl::unpack_impl(evp, output_dir, fds, context_internal);
     }
     catch (const std::exception& e) {
         evp_result result;
@@ -104,12 +105,12 @@ void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter
     t.detach();
 }
 
-void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, evp_context* context) {
-    std::thread t([evp, output_dir, context] {
+void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, std::vector<evp_fd>* fds, evp_context* context) {
+    std::thread t([evp, output_dir, fds, context] {
         evp_context_internal context_internal(context);
 
         try {
-            evp_impl::unpack_impl(evp, output_dir, context_internal);
+            evp_impl::unpack_impl(evp, output_dir, fds, context_internal);
         }
         catch (const std::exception& e) {
             evp_result result;
@@ -567,8 +568,8 @@ evp_result evp_impl::pack_impl(const std::filesystem::path& input_dir, const std
     return result;
 }
 
-evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::filesystem::path& output_dir,
-    evp_context_internal& context)
+evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
+    std::vector<evp_fd>* fds, evp_context_internal& context)
 {
     evp_result result, res;
     result.status = evp_result::status::failure;
@@ -576,11 +577,8 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
 
-    std::filesystem::path input  = evp;
-    std::filesystem::path output = output_dir;
-
-    if (!input.is_absolute())
-        input = std::filesystem::absolute(input);
+    if (!evp.is_absolute())
+        evp = std::filesystem::absolute(evp);
 
     if (!output.is_absolute())
         output = std::filesystem::absolute(output);
@@ -593,7 +591,7 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         return result;
     }
 
-    res = validate_directory(output_dir);
+    res = validate_directory(output);
     if (!res) {
         result.message = res.message;
 
@@ -601,10 +599,17 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
         return result;
     }
 
+    std::unordered_set<uint32_t> requested_fds = {};
+    if (fds) {
+        for (evp_fd& fd : *fds) {
+            requested_fds.insert(fd.data_offset);
+        }
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // UNPACK
 
-    fstream_read stream(input.string());
+    fstream_read stream(evp.string());
     if (!stream.is_valid()) {
         result.message = "Failed to open .evp file.";
 
@@ -633,6 +638,11 @@ evp_result evp_impl::unpack_impl(const std::filesystem::path& evp, const std::fi
             return result;
         }
         
+        if (fds && !requested_fds.contains(fd.data_offset)) {
+            context.invoke_update(prog_change);
+            continue;
+        }
+
         std::filesystem::path dir_path(output);
         dir_path /= fd.file;
         dir_path.remove_filename();

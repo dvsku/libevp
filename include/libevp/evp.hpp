@@ -40,12 +40,14 @@ namespace libevp {
          *
          *  @param evp          -> file path to .evp archive
          *  @param output_dir   -> dir path where to save unpacked files
+         *  @param fds          -> (optional) fds of files to unpack
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
          *      status == evp_result_status::failure    an error occurred during unpacking, message contains details;
         */
-        LIBEVP_API evp_result unpack(const FILE_PATH& evp, const DIR_PATH& output_dir);
+        LIBEVP_API evp_result unpack(const FILE_PATH& evp, const DIR_PATH& output_dir,
+            std::vector<evp_fd>* fds = nullptr);
 
         /*
          *  Asynchronously packs files in dir into a .evp archive.
@@ -67,9 +69,11 @@ namespace libevp {
          *
          *  @param evp          -> file path to .evp archive
          *  @param output_dir   -> dir path where to save unpacked files
+         *  @param fds          -> (optional) fds of files to unpack
          *  @param context      -> pointer to context that has callbacks
         */
-        LIBEVP_API void unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, evp_context* context = nullptr);
+        LIBEVP_API void unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir,
+            std::vector<evp_fd>* fds = nullptr, evp_context* context = nullptr);
 
         /*
          *  Validate files packed inside .evp archive.

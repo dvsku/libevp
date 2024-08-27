@@ -3,12 +3,12 @@
 
 using namespace libevp;
 
-TEST(misc, get_files) {
+TEST(misc, get_archive_fds) {
     evp         evp;
     std::string input = BASE_PATH + std::string("/tests/v1/resources/multiple_files.evp");
 
     std::vector<evp_fd> files = {};
-    auto result = evp.get_files(input, files);
+    auto result = evp.get_archive_fds(input, files);
 
     ASSERT_TRUE(result);
     ASSERT_TRUE(files.size() == 4);

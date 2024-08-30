@@ -4,9 +4,10 @@
 #include "libevp/stream/stream_read.hpp"
 #include "libevp/stream/stream_write.hpp"
 #include "libevp/misc/evp_context_internal.hpp"
+#include "libevp/utilities/string.hpp"
 #include "libevp/defs.hpp"
-#include "md5/md5.hpp"
 
+#include <md5/md5.hpp>
 #include <thread>
 #include <vector>
 #include <unordered_set>
@@ -66,7 +67,7 @@ evp_result evp::pack(const pack_input& input, const FILE_PATH& evp) {
     catch (const std::exception& e) {
         evp_result result;
         result.status  = evp_result::status::failure;
-        result.message = e.what();
+        result.message = EVP_STR_FORMAT("pack() ex | {}", e.what());
 
         return result;
     }
@@ -80,7 +81,7 @@ evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir, std::ve
     catch (const std::exception& e) {
         evp_result result;
         result.status  = evp_result::status::failure;
-        result.message = e.what();
+        result.message = EVP_STR_FORMAT("unpack() ex | {}", e.what());
 
         return result;
     }
@@ -96,7 +97,7 @@ void evp::pack_async(const pack_input& input, const FILE_PATH& evp, evp_context*
         catch (const std::exception& e) {
             evp_result result;
             result.status  = evp_result::status::failure;
-            result.message = e.what();
+            result.message = EVP_STR_FORMAT("pack_async() ex | {}", e.what());
 
             context_internal.invoke_finish(result);
         }
@@ -114,7 +115,7 @@ void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, std::ve
         catch (const std::exception& e) {
             evp_result result;
             result.status  = evp_result::status::failure;
-            result.message = e.what();
+            result.message = EVP_STR_FORMAT("unpack_async() ex | {}", e.what());
 
             context_internal.invoke_finish(result);
         }
@@ -134,7 +135,7 @@ evp_result evp::validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed
 
     fstream_read stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open file.";
+        result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
     }
 
@@ -183,7 +184,7 @@ evp_result evp::get_archive_fds(const FILE_PATH& evp, std::vector<evp_fd>& files
 
     fstream_read stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open file.";
+        result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
     }
 
@@ -214,7 +215,7 @@ evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uin
 
     fstream_read stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open file.";
+        result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
     }
 
@@ -257,7 +258,7 @@ evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vecto
 
     fstream_read stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open file.";
+        result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
     }
 
@@ -286,7 +287,7 @@ evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vecto
             result.status = evp_result::status::ok;
         }
         else {
-            result.message = "File not found.";
+            result.message = EVP_STR_FORMAT("File not found.");
         }
     }
     catch (const std::exception& e) {
@@ -319,19 +320,19 @@ evp_result read_structure(fstream_read& stream, libevp::format::format::ptr_t& f
     try {
         auto res = determine_format(stream, format);
         if (!res) {
-            result.message = res.message;
+            result.message = EVP_STR_FORMAT("Archive format not supported.");
             return result;
         }
 
         if (!format) {
-            result.message = "`format` is null.";
+            result.message = EVP_STR_FORMAT("Archive format not supported.");
             return result;
         }
 
         format->read_file_desc_block(stream);
     }
     catch (const std::exception& e) {
-        result.message = e.what();
+        result.message = EVP_STR_FORMAT("read_structure() ex | {}", e.what());
         return result;
     }
 
@@ -371,7 +372,7 @@ evp_result validate_evp_archive(const FILE_PATH& input, bool existing) {
     try {
         if (existing) {
             if (!std::filesystem::exists(input)) {
-                result.message = ".evp file not found.";
+                result.message = "File not found.";
                 return result;
             }
 
@@ -406,7 +407,7 @@ evp_result validate_directory(const DIR_PATH& input) {
 
     try {
         if (input == "") {
-            result.message = "Directory not found.";
+            result.message = "Cannot be empty.";
             return result;
         }
 
@@ -457,7 +458,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
 
     res = validate_directory(input.base);
     if (!res) {
-        result.message = res.message;
+        result.message = EVP_STR_FORMAT("Failed to validate input base path. | {}", res.message);
 
         context.invoke_finish(result);
         return result;
@@ -465,7 +466,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
 
     res = validate_evp_archive(evp, false);
     if (!res) {
-        result.message = res.message;
+        result.message = EVP_STR_FORMAT("Failed to validate output archive path. | {}", res.message);
 
         context.invoke_finish(result);
         return result;
@@ -478,7 +479,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
 
     fstream_write stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open .evp file.";
+        result.message = EVP_STR_FORMAT("Failed to open output archive file for writing.");
 
         context.invoke_finish(result);
         return result;
@@ -505,7 +506,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
         file /= relative_file;
 
         if (!std::filesystem::exists(file)) {
-            result.message = "File not found.";
+            result.message = EVP_STR_FORMAT("`{}` | File not found.", file.string().c_str());
 
             context.invoke_finish(result);
             return result;
@@ -513,7 +514,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
 
         fstream_read read_stream(file);
         if (!read_stream.is_valid()) {
-            result.message = "Failed to open file.";
+            result.message = EVP_STR_FORMAT("`{}` | Failed to open file for reading.", file.string().c_str());
 
             context.invoke_finish(result);
             return result;
@@ -584,7 +585,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
 
     res = validate_evp_archive(evp, true);
     if (!res) {
-        result.message = res.message;
+        result.message = EVP_STR_FORMAT("Failed to validate input archive path. | {}", res.message);
 
         context.invoke_finish(result);
         return result;
@@ -592,7 +593,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
 
     res = validate_directory(output);
     if (!res) {
-        result.message = res.message;
+        result.message = EVP_STR_FORMAT("Failed to validate output path. | {}", res.message);
 
         context.invoke_finish(result);
         return result;
@@ -610,7 +611,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
 
     fstream_read stream(evp);
     if (!stream.is_valid()) {
-        result.message = "Failed to open .evp file.";
+        result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
 
         context.invoke_finish(result);
         return result;
@@ -656,7 +657,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
 
         fstream_write out_stream(file_path);
         if (!out_stream.is_valid()) {
-            result.message = "Failed to open file.";
+            result.message = EVP_STR_FORMAT("`{}` | Failed to open file for writing.", file_path.string().c_str());
             return result;
         }
 

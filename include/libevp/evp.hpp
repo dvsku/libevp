@@ -6,8 +6,16 @@
 #include <libevp/model/evp_result.hpp>
 #include <libevp/model/evp_filter.hpp>
 
+#include <vector>
+
 namespace libevp {
     class evp {
+    public:
+        struct pack_input {
+            DIR_PATH              base;
+            std::vector<DIR_PATH> files;
+        };
+
     public:
         evp()           = default;
         evp(const evp&) = delete;
@@ -21,7 +29,7 @@ namespace libevp {
         /*
          *  Packs files in dir into a .evp archive.
          *
-         *  @param input_dir    -> dir path containing files to pack
+         *  @param input        -> files to pack
          *  @param evp          -> file path where to save the created .evp archive
          *  @param filter       ->
          *      none:   packs all files in dir;
@@ -32,8 +40,7 @@ namespace libevp {
          *      status == evp_result_status::ok         packed successfully;
          *      status == evp_result_status::failure    an error occurred during packing, message contains details;
         */
-        LIBEVP_API evp_result pack(const DIR_PATH& input_dir, const FILE_PATH& evp,
-            evp_filter filter = evp_filter::none);
+        LIBEVP_API evp_result pack(const pack_input& input, const FILE_PATH& evp);
 
         /*
          *  Unpacks .evp archive contents into a dir.
@@ -52,7 +59,7 @@ namespace libevp {
         /*
          *  Asynchronously packs files in dir into a .evp archive.
          *
-         *  @param input_dir    -> dir path containing files to pack
+         *  @param input        -> files to pack
          *  @param evp          -> file path where to save the created .evp archive
          *  @param filter       ->
          *      none:   packs all files in dir;
@@ -61,8 +68,7 @@ namespace libevp {
          *
          *  @param context -> pointer to context that has callbacks
         */
-        LIBEVP_API void pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp,
-            evp_filter filter = evp_filter::none, evp_context* context = nullptr);
+        LIBEVP_API void pack_async(const pack_input& input, const FILE_PATH& evp, evp_context* context = nullptr);
 
         /*
          *  Asynchronously unpacks .evp archive contents into a dir.

@@ -48,8 +48,8 @@ static void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes);
 namespace libevp {
     class evp_impl {
     public:
-        static evp_result pack_impl(DIR_PATH input, FILE_PATH evp,
-            evp_context_internal& context, evp_filter filter = evp_filter::none);
+        static evp_result pack_impl(const evp::pack_input input, FILE_PATH evp,
+            evp_context_internal& context);
 
         static evp_result unpack_impl(FILE_PATH evp, DIR_PATH output,
             std::vector<evp_fd>* fds, evp_context_internal& context);
@@ -59,10 +59,10 @@ namespace libevp {
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
-evp_result evp::pack(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter filter) {
+evp_result evp::pack(const pack_input& input, const FILE_PATH& evp) {
     try {
         evp_context_internal context_internal(nullptr);
-        return evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+        return evp_impl::pack_impl(input, evp, context_internal);
     }
     catch (const std::exception& e) {
         evp_result result;
@@ -87,12 +87,12 @@ evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir, std::ve
     }
 }
 
-void evp::pack_async(const DIR_PATH& input_dir, const FILE_PATH& evp, evp_filter filter, evp_context* context) {
-    std::thread t([input_dir, evp, filter, context] {
+void evp::pack_async(const pack_input& input, const FILE_PATH& evp, evp_context* context) {
+    std::thread t([input, evp, context] {
         evp_context_internal context_internal(context);
 
         try {
-            evp_impl::pack_impl(input_dir, evp, context_internal, filter);
+            evp_impl::pack_impl(input, evp, context_internal);
         }
         catch (const std::exception& e) {
             evp_result result;
@@ -406,6 +406,11 @@ evp_result validate_directory(const DIR_PATH& input) {
     result.status = evp_result::status::failure;
 
     try {
+        if (input == "") {
+            result.message = "Directory not found.";
+            return result;
+        }
+
         if (!std::filesystem::exists(input)) {
             result.message = "Directory not found.";
             return result;
@@ -439,8 +444,8 @@ void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes) {
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
-evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
-    evp_context_internal& context, evp_filter filter)
+evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
+    evp_context_internal& context)
 {
     evp_result result, res;
     result.status = evp_result::status::failure;
@@ -448,13 +453,10 @@ evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
 
-    if (!input.is_absolute())
-        input = std::filesystem::absolute(input);
-
     if (!evp.is_absolute())
         evp = std::filesystem::absolute(evp);
 
-    res = validate_directory(input);
+    res = validate_directory(input.base);
     if (!res) {
         result.message = res.message;
 
@@ -483,8 +485,7 @@ evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
         return result;
     }
 
-    auto  files       = filtering::get_filtered_paths(input, filter);
-    float prog_change = 100.0f / files.size();
+    float prog_change = 100.0f / input.files.size();
 
     context.invoke_start();
 
@@ -493,7 +494,7 @@ evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
 
     format.write_format_desc(stream);
 
-    for (auto& filename : files) {
+    for (const auto& relative_file : input.files) {
         if (context.is_cancelled()) {
             context.invoke_cancel();
 
@@ -501,7 +502,17 @@ evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
             return result;
         }
 
-        fstream_read read_stream(filename);
+        std::filesystem::path file = input.base;
+        file /= relative_file;
+
+        if (!std::filesystem::exists(file)) {
+            result.message = "File not found.";
+
+            context.invoke_finish(result);
+            return result;
+        }
+
+        fstream_read read_stream(file);
         if (!read_stream.is_valid()) {
             result.message = "Failed to open file.";
 
@@ -510,24 +521,16 @@ evp_result evp_impl::pack_impl(DIR_PATH input, FILE_PATH evp,
         }
 
         evp_fd fd;
-        fd.file        = filename.string();
+        fd.file        = relative_file.string();
         fd.data_offset = (uint32_t)stream.pos();
         fd.data_size   = (uint32_t)read_stream.size();
 
-        {
-            std::string base = input.string();
+        // Swap slash direction
+        std::replace(fd.file.begin(), fd.file.end(), '/', '\\');
 
-            // convert to relative
-            size_t start_index = fd.file.find(base);
-            fd.file.erase(start_index, base.size());
-
-            // swap slash direction
-            std::replace(fd.file.begin(), fd.file.end(), '/', '\\');
-
-            // remove leading slash
-            if (fd.file[0] == '\\')
-                fd.file.erase(0, 1);
-        }
+        // Remove leading slash
+        if (fd.file[0] == '\\')
+            fd.file.erase(0, 1);
 
         MD5      md5;
         uint32_t left_to_read = fd.data_size;

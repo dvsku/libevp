@@ -4,7 +4,6 @@
 #include "libevp/stream/stream_read.hpp"
 #include "libevp/stream/stream_write.hpp"
 #include "libevp/misc/evp_context_internal.hpp"
-#include "libevp/utilities/filtering.hpp"
 #include "libevp/defs.hpp"
 #include "md5/md5.hpp"
 

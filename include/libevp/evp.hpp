@@ -4,7 +4,6 @@
 #include <libevp/evp_context.hpp>
 #include <libevp/model/evp_fd.hpp>
 #include <libevp/model/evp_result.hpp>
-#include <libevp/model/evp_filter.hpp>
 
 #include <vector>
 

@@ -29,8 +29,11 @@ static bool compare_files(const std::string& p1, const std::string& p2) {
 
 TEST(packing, v1_packing) {
     evp evp;
+    
+    evp::pack_input input;
+    input.base = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2");
+    input.files.push_back("text_3.txt");
 
-    std::string input  = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2");
     std::string output = BASE_PATH + std::string("/tests/v1/resources/v1_packing_single_file.evp");
     std::string valid  = BASE_PATH + std::string("/tests/v1/resources/single_file.evp");
 

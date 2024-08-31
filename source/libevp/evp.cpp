@@ -48,7 +48,7 @@ static void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes);
 namespace libevp {
     class evp_impl {
     public:
-        static evp_result pack_impl(const evp::pack_input input, FILE_PATH evp,
+        static evp_result pack_impl(const evp::pack_input input, FILE_PATH output,
             evp_context_internal& context);
 
         static evp_result unpack_impl(evp::unpack_input input, DIR_PATH output,
@@ -59,10 +59,10 @@ namespace libevp {
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC
 
-evp_result evp::pack(const pack_input& input, const FILE_PATH& evp) {
+evp_result evp::pack(const pack_input& input, const FILE_PATH& output) {
     try {
         evp_context_internal context_internal(nullptr);
-        return evp_impl::pack_impl(input, evp, context_internal);
+        return evp_impl::pack_impl(input, output, context_internal);
     }
     catch (const std::exception& e) {
         evp_result result;
@@ -87,12 +87,12 @@ evp_result evp::unpack(const unpack_input& input, const DIR_PATH& output) {
     }
 }
 
-void evp::pack_async(const pack_input& input, const FILE_PATH& evp, evp_context* context) {
-    std::thread t([input, evp, context] {
+void evp::pack_async(const pack_input& input, const FILE_PATH& output, evp_context* context) {
+    std::thread t([input, output, context] {
         evp_context_internal context_internal(context);
 
         try {
-            evp_impl::pack_impl(input, evp, context_internal);
+            evp_impl::pack_impl(input, output, context_internal);
         }
         catch (const std::exception& e) {
             evp_result result;
@@ -123,17 +123,17 @@ void evp::unpack_async(const unpack_input& input, const DIR_PATH& output, evp_co
     t.detach();
 }
 
-evp_result evp::validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed_fds) {
+evp_result evp::validate_files(const FILE_PATH& input, std::vector<evp_fd>* failed_files) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
-    res = validate_evp_archive(evp, true);
+    res = validate_evp_archive(input, true);
     if (!res) {
         result.message = res.message;
         return result;
     }
 
-    fstream_read stream(evp);
+    fstream_read stream(input);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
@@ -163,8 +163,8 @@ evp_result evp::validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed
         if (memcmp(hash.data(), file.hash.data(), 16) != 0) {
             failed_count++;
 
-            if (failed_fds)
-                failed_fds->push_back(file);
+            if (failed_files)
+                failed_files->push_back(file);
         }
     }
 
@@ -172,17 +172,17 @@ evp_result evp::validate_files(const FILE_PATH& evp, std::vector<evp_fd>* failed
     return result;
 }
 
-evp_result evp::get_archive_fds(const FILE_PATH& evp, std::vector<evp_fd>& files) {
+evp_result evp::get_archive_fds(const FILE_PATH& input, std::vector<evp_fd>& files) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
-    res = validate_evp_archive(evp, true);
+    res = validate_evp_archive(input, true);
     if (!res) {
         result.message = res.message;
         return result;
     }
 
-    fstream_read stream(evp);
+    fstream_read stream(input);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
@@ -203,27 +203,27 @@ evp_result evp::get_archive_fds(const FILE_PATH& evp, std::vector<evp_fd>& files
     return result;
 }
 
-evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uint8_t>& buffer) {
+evp_result evp::get_file(const FILE_PATH& input, const evp_fd& file, std::vector<uint8_t>& buffer) {
     evp_result result, res;
     result.status = evp_result::status::failure;
 
-    res = validate_evp_archive(evp, true);
+    res = validate_evp_archive(input, true);
     if (!res) {
         result.message = res.message;
         return result;
     }
 
-    fstream_read stream(evp);
+    fstream_read stream(input);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
     }
 
     try {
-        buffer.resize(fd.data_size);
+        buffer.resize(file.data_size);
         
-        stream.seek(fd.data_offset, std::ios::beg);
-        stream.read(buffer.data(), fd.data_size);
+        stream.seek(file.data_offset, std::ios::beg);
+        stream.read(buffer.data(), file.data_size);
     }
     catch (const std::exception& e) {
         result.message = e.what();
@@ -234,10 +234,10 @@ evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::vector<uin
     return result;
 }
 
-evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::stringstream& stream) {
+evp_result evp::get_file(const FILE_PATH& input, const evp_fd& file, std::stringstream& stream) {
     buffer_t buffer;
 
-    auto result = get_file(evp, fd, buffer);
+    auto result = get_file(input, file, buffer);
     if (!result)
         return result;
 
@@ -246,17 +246,17 @@ evp_result evp::get_file(const FILE_PATH& evp, const evp_fd& fd, std::stringstre
     return result;
 }
 
-evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vector<uint8_t>& buffer) {
+evp_result evp::get_file(const FILE_PATH& input, const FILE_PATH& file, std::vector<uint8_t>& buffer) {
     evp_result result, res;
     result.status = evp_result::status::failure;
     
-    res = validate_evp_archive(evp, true);
+    res = validate_evp_archive(input, true);
     if (!res) {
         result.message = res.message;
         return result;
     }
 
-    fstream_read stream(evp);
+    fstream_read stream(input);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
         return result;
@@ -298,10 +298,10 @@ evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::vecto
     return result;
 }
 
-evp_result evp::get_file(const FILE_PATH& evp, const FILE_PATH& file, std::stringstream& stream) {
+evp_result evp::get_file(const FILE_PATH& input, const FILE_PATH& file, std::stringstream& stream) {
     buffer_t buffer;
 
-    auto result = get_file(evp, file, buffer);
+    auto result = get_file(input, file, buffer);
     if (!result)
         return result;
 
@@ -444,7 +444,7 @@ void MD5_hex_string_to_bytes(MD5& md5, uint8_t* bytes) {
 ///////////////////////////////////////////////////////////////////////////////
 // EVP IMPL
 
-evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
+evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH output,
     evp_context_internal& context)
 {
     evp_result result, res;
@@ -453,8 +453,8 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
 
-    if (!evp.is_absolute())
-        evp = std::filesystem::absolute(evp);
+    if (!output.is_absolute())
+        output = std::filesystem::absolute(output);
 
     res = validate_directory(input.base);
     if (!res) {
@@ -464,7 +464,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
         return result;
     }
 
-    res = validate_evp_archive(evp, false);
+    res = validate_evp_archive(output, false);
     if (!res) {
         result.message = EVP_STR_FORMAT("Failed to validate output archive path. | {}", res.message);
 
@@ -477,7 +477,7 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
 
     format::v1::format format;
 
-    fstream_write stream(evp);
+    fstream_write stream(output);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open output archive file for writing.");
 

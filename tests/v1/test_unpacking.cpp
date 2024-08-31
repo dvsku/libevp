@@ -38,7 +38,9 @@ static bool compare_buffers(const std::vector<uint8_t>& b1, const std::vector<ui
 TEST(unpacking, v1_unpacking) {
     evp evp;
 
-    std::string input       = BASE_PATH + std::string("/tests/v1/resources/single_file.evp");
+    evp::unpack_input input;
+    input.archive = BASE_PATH + std::string("/tests/v1/resources/single_file.evp");
+
     std::string output      = BASE_PATH + std::string("/tests/v1/resources/unpack_here/");
     std::string valid       = BASE_PATH + std::string("/tests/v1/resources/files_to_pack/subfolder_2/text_3.txt");
     std::string output_file = BASE_PATH + std::string("/tests/v1/resources/unpack_here/text_3.txt");

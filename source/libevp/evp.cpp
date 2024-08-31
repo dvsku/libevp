@@ -51,8 +51,8 @@ namespace libevp {
         static evp_result pack_impl(const evp::pack_input input, FILE_PATH evp,
             evp_context_internal& context);
 
-        static evp_result unpack_impl(FILE_PATH evp, DIR_PATH output,
-            std::vector<evp_fd>* fds, evp_context_internal& context);
+        static evp_result unpack_impl(evp::unpack_input input, DIR_PATH output,
+            evp_context_internal& context);
     };
 }
 
@@ -73,10 +73,10 @@ evp_result evp::pack(const pack_input& input, const FILE_PATH& evp) {
     }
 }
 
-evp_result evp::unpack(const FILE_PATH& evp, const DIR_PATH& output_dir, std::vector<evp_fd>* fds) {
+evp_result evp::unpack(const unpack_input& input, const DIR_PATH& output) {
     try {
         evp_context_internal context_internal(nullptr);
-        return evp_impl::unpack_impl(evp, output_dir, fds, context_internal);
+        return evp_impl::unpack_impl(input, output, context_internal);
     }
     catch (const std::exception& e) {
         evp_result result;
@@ -105,12 +105,12 @@ void evp::pack_async(const pack_input& input, const FILE_PATH& evp, evp_context*
     t.detach();
 }
 
-void evp::unpack_async(const FILE_PATH& evp, const DIR_PATH& output_dir, std::vector<evp_fd>* fds, evp_context* context) {
-    std::thread t([evp, output_dir, fds, context] {
+void evp::unpack_async(const unpack_input& input, const DIR_PATH& output, evp_context* context) {
+    std::thread t([input, output, context] {
         evp_context_internal context_internal(context);
 
         try {
-            evp_impl::unpack_impl(evp, output_dir, fds, context_internal);
+            evp_impl::unpack_impl(input, output, context_internal);
         }
         catch (const std::exception& e) {
             evp_result result;
@@ -568,8 +568,8 @@ evp_result evp_impl::pack_impl(const evp::pack_input input, FILE_PATH evp,
     return result;
 }
 
-evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
-    std::vector<evp_fd>* fds, evp_context_internal& context)
+evp_result evp_impl::unpack_impl(evp::unpack_input input, DIR_PATH output,
+    evp_context_internal& context)
 {
     evp_result result, res;
     result.status = evp_result::status::failure;
@@ -577,13 +577,13 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
     ///////////////////////////////////////////////////////////////////////////
     // VERIFY
 
-    if (!evp.is_absolute())
-        evp = std::filesystem::absolute(evp);
+    if (!input.archive.is_absolute())
+        input.archive = std::filesystem::absolute(input.archive);
 
     if (!output.is_absolute())
         output = std::filesystem::absolute(output);
 
-    res = validate_evp_archive(evp, true);
+    res = validate_evp_archive(input.archive, true);
     if (!res) {
         result.message = EVP_STR_FORMAT("Failed to validate input archive path. | {}", res.message);
 
@@ -600,16 +600,14 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
     }
 
     std::unordered_set<uint32_t> requested_fds = {};
-    if (fds) {
-        for (evp_fd& fd : *fds) {
-            requested_fds.insert(fd.data_offset);
-        }
+    for (evp_fd& fd : input.files) {
+        requested_fds.insert(fd.data_offset);
     }
 
     ///////////////////////////////////////////////////////////////////////////
     // UNPACK
 
-    fstream_read stream(evp);
+    fstream_read stream(input.archive);
     if (!stream.is_valid()) {
         result.message = EVP_STR_FORMAT("Failed to open input archive for reading.");
 
@@ -638,7 +636,7 @@ evp_result evp_impl::unpack_impl(FILE_PATH evp, DIR_PATH output,
             return result;
         }
         
-        if (fds && !requested_fds.contains(fd.data_offset)) {
+        if (requested_fds.size() != 0 && !requested_fds.contains(fd.data_offset)) {
             context.invoke_update(prog_change);
             continue;
         }

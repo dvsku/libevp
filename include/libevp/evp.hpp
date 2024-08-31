@@ -31,14 +31,10 @@ namespace libevp {
     public:
 
         /*
-         *  Packs files in dir into a .evp archive.
+         *  Pack files in dir into an archive.
          *
-         *  @param input        -> files to pack
-         *  @param evp          -> file path where to save the created .evp archive
-         *  @param filter       ->
-         *      none:   packs all files in dir;
-         *      client: packs only Talisman Online client related files;
-         *      server: packs only Talisman Online server related files
+         *  @param input    -> files to pack
+         *  @param output   -> file path where to save the created archive
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         packed successfully;
@@ -47,11 +43,10 @@ namespace libevp {
         LIBEVP_API evp_result pack(const pack_input& input, const FILE_PATH& output);
 
         /*
-         *  Unpacks .evp archive contents into a dir.
+         *  Unpack archive contents into a dir.
          *
-         *  @param evp          -> file path to .evp archive
-         *  @param output_dir   -> dir path where to save unpacked files
-         *  @param fds          -> (optional) fds of files to unpack
+         *  @param input    -> archive and optional files
+         *  @param output   -> dir path where to save unpacked files
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         unpacked successfully;
@@ -60,34 +55,28 @@ namespace libevp {
         LIBEVP_API evp_result unpack(const unpack_input& input, const DIR_PATH& output);
 
         /*
-         *  Asynchronously packs files in dir into a .evp archive.
+         *  Asynchronously pack files in dir into an archive.
          *
-         *  @param input        -> files to pack
-         *  @param evp          -> file path where to save the created .evp archive
-         *  @param filter       ->
-         *      none:   packs all files in dir;
-         *      client: packs only Talisman Online client related files;
-         *      server: packs only Talisman Online server related files
-         *
-         *  @param context -> pointer to context that has callbacks
+         *  @param input    -> files to pack
+         *  @param output   -> file path where to save the created .evp archive
+         *  @param context  -> pointer to context that has callbacks
         */
         LIBEVP_API void pack_async(const pack_input& input, const FILE_PATH& output, evp_context* context = nullptr);
 
         /*
-         *  Asynchronously unpacks .evp archive contents into a dir.
+         *  Asynchronously unpack archive contents into a dir.
          *
-         *  @param evp          -> file path to .evp archive
-         *  @param output_dir   -> dir path where to save unpacked files
-         *  @param fds          -> (optional) fds of files to unpack
-         *  @param context      -> pointer to context that has callbacks
+         *  @param input    -> archive and optional files
+         *  @param output   -> dir path where to save unpacked files
+         *  @param context  -> pointer to context that has callbacks
         */
         LIBEVP_API void unpack_async(const unpack_input& input, const DIR_PATH& output, evp_context* context = nullptr);
 
         /*
-         *  Validate files packed inside .evp archive.
+         *  Validate files packed inside archive.
          *
-         *  @param evp   -> file path to .evp archive
-         *  @param files -> vector to store file fds that failed to validate
+         *  @param input    -> file path to archive
+         *  @param files    -> vector to store file fds that failed to validate
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         all files successfully validated;
@@ -96,10 +85,10 @@ namespace libevp {
         LIBEVP_API evp_result validate_files(const FILE_PATH& input, std::vector<evp_fd>* failed_files = nullptr);
 
         /*
-         *  Get file fds packed inside .evp archive.
+         *  Get file fds packed inside archive.
          *
-         *  @param evp   -> file path to .evp archive
-         *  @param files -> vector to store the file fds into
+         *  @param input    -> file path to archive
+         *  @param files    -> vector to store the file fds into
          *
          *  @returns evp_result
          *      status == evp_result_status::ok         got files successfully;
@@ -108,10 +97,10 @@ namespace libevp {
         LIBEVP_API evp_result get_archive_fds(const FILE_PATH& input, std::vector<evp_fd>& files);
 
         /*
-         *  Unpack a single file from .evp archive into a buffer.
+         *  Unpack a single file from archive into a buffer.
          *
-         *  @param evp      -> file path to .evp archive
-         *  @param fd       -> file fd to unpack
+         *  @param input    -> file path to archive
+         *  @param file     -> file fd to unpack
          *  @param buffer   -> buffer to unpack into
          *
          *  @returns evp_result
@@ -121,10 +110,10 @@ namespace libevp {
         LIBEVP_API evp_result get_file(const FILE_PATH& input, const evp_fd& file, std::vector<uint8_t>& buffer);
 
         /*
-         *  Unpack a single file from .evp archive into a stringstream.
+         *  Unpack a single file from archive into a stringstream.
          *
-         *  @param evp      -> file path to .evp archive
-         *  @param fd       -> file fd to unpack
+         *  @param input    -> file path to archive
+         *  @param file     -> file fd to unpack
          *  @param stream   -> stream to unpack into
          *
          *  @returns evp_result
@@ -134,9 +123,9 @@ namespace libevp {
         LIBEVP_API evp_result get_file(const FILE_PATH& input, const evp_fd& file, std::stringstream& stream);
 
         /*
-         *  Unpack a single file from .evp archive into a buffer.
+         *  Unpack a single file from archive into a buffer.
          *
-         *  @param evp      -> file path to .evp archive
+         *  @param input    -> file path to archive
          *  @param file     -> file to unpack
          *  @param buffer   -> buffer to unpack into
          *
@@ -147,9 +136,9 @@ namespace libevp {
         LIBEVP_API evp_result get_file(const FILE_PATH& input, const FILE_PATH& file, std::vector<uint8_t>& buffer);
 
         /*
-         *  Unpack a single file from .evp archive into a stringstream.
+         *  Unpack a single file from archive into a stringstream.
          *
-         *  @param evp      -> file path to .evp archive
+         *  @param input    -> file path to archive
          *  @param file     -> file to unpack
          *  @param stream   -> stream to unpack into
          *
